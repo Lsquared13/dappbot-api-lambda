@@ -1,10 +1,6 @@
-console.log("Importing services");
 const { sqs, dynamoDB } = require('./services');
-console.log("Importing validate");
 const validate = require('./validate');
-console.log("Importing assert");
 const assert = require('assert');
-console.log("API Imports Complete");
 
 const logErr = (stage, err) => { console.log(`Error on ${stage}: `, err) }
 const logNonFatalErr = (stage, reason) => { console.log(`Ignoring non-fatal error during ${stage}: ${reason}`) }

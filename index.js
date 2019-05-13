@@ -1,10 +1,6 @@
-console.log("Loading");
 'use strict';
-console.log("Importing API");
 const api = require('./api');
-console.log("Importing Validate");
 const validate = require('./validate');
-console.log("Imports Complete");
 
 exports.handler = async (event) => {
     console.log("request: " + JSON.stringify(event));
