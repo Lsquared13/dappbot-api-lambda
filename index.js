@@ -5,6 +5,11 @@ const validate = require('./validate');
 exports.handler = async (event) => {
     console.log("request: " + JSON.stringify(event));
 
+    // Auto-return success for CORS pre-flight OPTIONS requests
+    if (event.httpMethod.toLowerCase() == 'options'){
+        return api.successResponse({});
+    }
+
     let method = event.pathParameters.proxy;
     let body = null;
     if (event.body) {
