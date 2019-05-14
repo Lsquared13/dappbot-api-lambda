@@ -49,17 +49,7 @@ const reservedDappNames = new Set([
     'weylgovernance'
 ]);
 
-function validateBodyDelete(body) {
-    assert(body.hasOwnProperty('DappName'), "delete: required argument 'DappName' not found");
-}
-
-function validateBodyRead(body) {
-    assert(body.hasOwnProperty('DappName'), "read: required argument 'DappName' not found");
-}
-
-function validateBodyUpdate(body) {
-    assert(body.hasOwnProperty('DappName'), "update: required argument 'DappName' not found");
-}
+// CREATE VALIDATION
 
 function validateBodyCreate(body) {
     assert(body.hasOwnProperty('DappName'), "create: required argument 'DappName' not found");
@@ -102,16 +92,34 @@ function validateAllowedDappName(dappName, email) {
     return true;
 }
 
+async function validateNameNotTaken(dappName) {
+    let existingItem = null;
+    try {
+        existingItem = await dynamoDB.getItem(dappName);
+    } catch (err) {
+        console.log("Error retrieving DB Item for create validation", err);
+        throw err;
+    }
+    assert(!existingItem.Item, `DappName ${dappName} is already taken. Please choose another name.`);
+}
+
 async function validateCreate(body, cognitoUsername, callerEmail) {
     try {
         validateBodyCreate(body);
         let dappName = cleanDappName(body.DappName);
         validateAllowedDappName(dappName, callerEmail);
         await validateLimitsCreate(cognitoUsername, callerEmail);
+        await validateNameNotTaken(dappName);
         return {dbItem: null, err: null};
     } catch (err) {
         return {dbItem: null, err: err};
     }
+}
+
+// READ VALIDATION
+
+function validateBodyRead(body) {
+    assert(body.hasOwnProperty('DappName'), "read: required argument 'DappName' not found");
 }
 
 async function validateRead(body) {
@@ -123,6 +131,12 @@ async function validateRead(body) {
     }
 }
 
+// UPDATE VALIDATION
+
+function validateBodyUpdate(body) {
+    assert(body.hasOwnProperty('DappName'), "update: required argument 'DappName' not found");
+}
+
 async function validateUpdate(body) {
     try {
         validateBodyUpdate(body);
@@ -130,6 +144,12 @@ async function validateUpdate(body) {
     } catch (err) {
         return {dbItem: null, err: err};
     }
+}
+
+// DELETE VALIDATION
+
+function validateBodyDelete(body) {
+    assert(body.hasOwnProperty('DappName'), "delete: required argument 'DappName' not found");
 }
 
 async function validateDelete(body) {
@@ -140,6 +160,8 @@ async function validateDelete(body) {
         return {dbItem: null, err: err};
     }
 }
+
+// HELPER FUNCTIONS
 
 /*
 Returns whether an email has Admin rights
