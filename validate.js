@@ -1,5 +1,4 @@
-// TODO: Enable validation
-//const { cognito, dynamoDB } = require('./services');
+const { cognito, dynamoDB } = require('./services');
 const assert = require('assert');
 
 const dappLimitAttrName = 'custom:num_dapps';
@@ -70,29 +69,29 @@ function validateBodyCreate(body) {
     assert(body.hasOwnProperty('GuardianURL'), "create: required argument 'GuardianURL' not found");
 }
 
-//async function validateLimitsCreate(cognitoUsername, ownerEmail) {
-//    console.log("Validating Limits for User", cognitoUsername);
-//    let dappLimit = null;
-//    return cognito.getUser(cognitoUsername).then(function(result) {
-//        console.log("Found Cognito User", result);
-//        let attrList = result.UserAttributes;
-//        let dappLimitAttr = attrList.filter(attr => attr.Name === dappLimitAttrName);
-//        assert(dappLimitAttr.length === 1);
-//        dappLimit = dappLimitAttr[0].Value;
+async function validateLimitsCreate(cognitoUsername, ownerEmail) {
+    console.log("Validating Limits for User", cognitoUsername);
+    let dappLimit = null;
+    return cognito.getUser(cognitoUsername).then(function(result) {
+        console.log("Found Cognito User", result);
+        let attrList = result.UserAttributes;
+        let dappLimitAttr = attrList.filter(attr => attr.Name === dappLimitAttrName);
+        assert(dappLimitAttr.length === 1);
+        dappLimit = dappLimitAttr[0].Value;
 
-//        return dynamoDB.getByOwner(ownerEmail);
-//    })
-//    .then(function(result) {
-//        console.log("Scanned DynamoDB Table", result);
-//        let numDappsOwned = result.Items.length;
-//        assert(numDappsOwned + 1 <= dappLimit, "User " + ownerEmail + " already at dapp limit: " + dappLimit);
-//        return true;
-//    })
-//    .catch(function(err) {
-//        console.log("Error Validating Limit", err);
-//        throw err;
-//    })
-//}
+        return dynamoDB.getByOwner(ownerEmail);
+    })
+    .then(function(result) {
+        console.log("Scanned DynamoDB Table", result);
+        let numDappsOwned = result.Items.length;
+        assert(numDappsOwned + 1 <= dappLimit, "User " + ownerEmail + " already at dapp limit: " + dappLimit);
+        return true;
+    })
+    .catch(function(err) {
+        console.log("Error Validating Limit", err);
+        throw err;
+    })
+}
 
 function validateAllowedDappName(dappName, email) {
     // Admins can use reserved names
@@ -107,11 +106,11 @@ async function validateCreate(body, cognitoUsername, ownerEmail) {
     validateBodyCreate(body);
     let dappName = cleanDappName(body.DappName);
     validateAllowedDappName(dappName, ownerEmail);
-//    try {
-//        return await validateLimitsCreate(cognitoUsername, ownerEmail);
-//    } catch (err) {
-//        throw err;
-//    }
+    try {
+        return await validateLimitsCreate(cognitoUsername, ownerEmail);
+    } catch (err) {
+        throw err;
+    }
 }
 
 async function validateRead(body) {
