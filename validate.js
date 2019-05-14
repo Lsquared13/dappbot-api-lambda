@@ -103,17 +103,12 @@ async function validateNameNotTaken(dappName) {
     assert(!existingItem.Item, `DappName ${dappName} is already taken. Please choose another name.`);
 }
 
-async function validateCreate(body, cognitoUsername, callerEmail) {
-    try {
-        validateBodyCreate(body);
-        let dappName = cleanDappName(body.DappName);
-        validateAllowedDappName(dappName, callerEmail);
-        await validateLimitsCreate(cognitoUsername, callerEmail);
-        await validateNameNotTaken(dappName);
-        return {dbItem: null, err: null};
-    } catch (err) {
-        return {dbItem: null, err: err};
-    }
+async function validateCreateAllowed(dappName, cognitoUsername, callerEmail) {
+    validateAllowedDappName(dappName, callerEmail);
+    let limitCheck = validateLimitsCreate(cognitoUsername, callerEmail);
+    let nameTakenCheck = validateNameNotTaken(dappName);
+    await limitCheck;
+    await nameTakenCheck;
 }
 
 // READ VALIDATION
@@ -122,13 +117,11 @@ function validateBodyRead(body) {
     assert(body.hasOwnProperty('DappName'), "read: required argument 'DappName' not found");
 }
 
-async function validateRead(body) {
-    try {
-        validateBodyRead(body);
-        return {dbItem: null, err: null};
-    } catch (err) {
-        return {dbItem: null, err: err};
-    }
+async function validateReadAllowed(dbItem, callerEmail) {
+    if (isAdmin(callerEmail)) { return; }
+
+    let dbOwner = dbItem.Item.OwnerEmail.S;
+    assert(callerEmail === dbOwner, "You do not have permission to read the specified Dapp.");
 }
 
 // UPDATE VALIDATION
@@ -137,13 +130,12 @@ function validateBodyUpdate(body) {
     assert(body.hasOwnProperty('DappName'), "update: required argument 'DappName' not found");
 }
 
-async function validateUpdate(body) {
-    try {
-        validateBodyUpdate(body);
-        return {dbItem: null, err: null};
-    } catch (err) {
-        return {dbItem: null, err: err};
-    }
+async function validateUpdateAllowed(dappName, callerEmail) {
+    let dbItem = await dynamoDB.getItem(dappName);
+    assert(dbItem.Item, "Dapp Not Found");
+
+    let dbOwner = dbItem.Item.OwnerEmail.S;
+    assert(callerEmail === dbOwner, "You do not have permission to update the specified Dapp.");
 }
 
 // DELETE VALIDATION
@@ -152,13 +144,14 @@ function validateBodyDelete(body) {
     assert(body.hasOwnProperty('DappName'), "delete: required argument 'DappName' not found");
 }
 
-async function validateDelete(body) {
-    try {
-        validateBodyDelete(body);
-        return {dbItem: null, err: null};
-    } catch (err) {
-        return {dbItem: null, err: err};
-    }
+async function validateDeleteAllowed(dappName, callerEmail) {
+    let dbItem = await dynamoDB.getItem(dappName);
+    assert(dbItem.Item, "Dapp Not Found");
+
+    if (isAdmin(callerEmail)) { return; }
+
+    let dbOwner = dbItem.Item.OwnerEmail.S;
+    assert(callerEmail === dbOwner, "You do not have permission to delete the specified Dapp.");
 }
 
 // HELPER FUNCTIONS
@@ -181,10 +174,13 @@ function cleanDappName(name) {
 }
 
 module.exports = {
-    delete : validateDelete,
-    create : validateCreate,
-    read : validateRead,
-    update : validateUpdate,
-    cleanName : cleanDappName,
-    isAdmin : isAdmin
+    createBody : validateBodyCreate,
+    createAllowed : validateCreateAllowed,
+    readBody : validateBodyRead,
+    readAllowed : validateReadAllowed,
+    updateBody : validateBodyUpdate,
+    updateAllowed : validateUpdateAllowed,
+    deleteBody : validateBodyDelete,
+    deleteAllowed : validateDeleteAllowed,
+    cleanName : cleanDappName
 }

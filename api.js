@@ -61,9 +61,10 @@ function callFactory(startStage) {
     return [stage, callAndLog];
 }
 
-async function apiCreate(body, owner) {
-    let dappName = validate.cleanName(body.DappName);
+async function apiCreate(body, callerEmail, cognitoUsername) {
+    validate.createBody(body);
 
+    let dappName = validate.cleanName(body.DappName);
     let abi = body.Abi;
     let web3URL = body.Web3URL;
     let guardianURL = body.GuardianURL;
@@ -72,11 +73,10 @@ async function apiCreate(body, owner) {
     let [stage, callAndLog] = callFactory('Pre-Creation');
 
     try {
-        // TODO: Move to validate
-        const existingItem = await callAndLog('Get DynamoDB Item', dynamoDB.getItem(dappName));
-        assert(!existingItem.Item, `DappName ${dappName} is already taken. Please choose another name.`);
+        await validate.createAllowed(dappName, cognitoUsername, callerEmail);
 
         // TODO
+        //await callAndLog('Send SQS Message', sqs.sendMessage('create', dappName));
 
         let responseBody = {
             method: "create",
@@ -90,16 +90,24 @@ async function apiCreate(body, owner) {
 }
 
 async function apiRead(body, callerEmail) {
+    validate.readBody(body);
+
     let dappName = validate.cleanName(body.DappName);
 
     let [stage, callAndLog] = callFactory('Pre-Read');
 
     try {
         const dbItem = await callAndLog('Get DynamoDB Item', dynamoDB.getItem(dappName));
-        let outputItem = dynamoDB.toApiRepresentation(dbItem.Item);
-        if (outputItem.OwnerEmail !== callerEmail && !validate.isAdmin(callerEmail)) {
+
+        let outputItem = null;
+        try {
+            await validate.readAllowed(dbItem, callerEmail);
+            outputItem = dynamoDB.toApiRepresentation(dbItem.Item);
+        } catch (err) {
+            console.log("Read permission denied. Returning empty object.", err);
             outputItem = {};
         }
+
         let itemExists = Boolean(outputItem.DappName);
         let responseBody = {
             method: "read",
@@ -113,7 +121,9 @@ async function apiRead(body, callerEmail) {
     }
 }
 
-async function apiUpdate(body, owner) {
+async function apiUpdate(body, callerEmail) {
+    validate.updateBody(body);
+
     let dappName = validate.cleanName(body.DappName);
     // These values may or may not be defined
     let abi = body.Abi;
@@ -131,12 +141,8 @@ async function apiUpdate(body, owner) {
             };
             return successResponse(responseBody);
         }
-        const dbItem = await callAndLog('Get DynamoDB Item', dynamoDB.getItem(dappName));
-        assert(dbItem.Item, "Dapp Not Found");
 
-        let dbOwner = dbItem.Item.OwnerEmail.S;
-        let cloudfrontDistroId = dbItem.Item.CloudfrontDistributionId.S;
-        assert(owner === dbOwner, "You do not have permission to update the specified Dapp.");
+        await validate.updateAllowed(dappName, callerEmail);
 
         // TODO
 
@@ -152,20 +158,14 @@ async function apiUpdate(body, owner) {
 }
 
 async function apiDelete(body, callerEmail) {
+    validate.deleteBody(body);
+
     let dappName = validate.cleanName(body.DappName);
 
     let [stage, callAndLog] = callFactory('Pre-Delete');
 
     try {
-        const dbItem = await callAndLog('Get Dapp DynamoDb Item', dynamoDB.getItem(dappName));
-        assert(dbItem.Item, "Dapp Not Found");
-
-        let dbOwner = dbItem.Item.OwnerEmail.S;
-        let bucketName = dbItem.Item.S3BucketName.S;
-        let cloudfrontDistroId = dbItem.Item.CloudfrontDistributionId.S;
-        let cloudfrontDns = dbItem.Item.CloudfrontDnsName.S;
-
-        assert(callerEmail === dbOwner || validate.isAdmin(callerEmail), "You do not have permission to delete the specified Dapp.");
+        await validate.deleteAllowed(dappName, callerEmail);
 
         // TODO
 
@@ -182,11 +182,11 @@ async function apiDelete(body, callerEmail) {
 
 }
 
-async function apiList(owner) {
+async function apiList(callerEmail) {
     let [stage, callAndLog] = callFactory('Pre-List');
 
     try {
-        let ddbResponse = await callAndLog('List DynamoDB Items', dynamoDB.getByOwner(owner));
+        let ddbResponse = await callAndLog('List DynamoDB Items', dynamoDB.getByOwner(callerEmail));
         let outputItems = ddbResponse.Items.map(item => dynamoDB.toApiRepresentation(item));
         let responseBody = {
             method: "list",

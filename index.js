@@ -15,26 +15,21 @@ exports.handler = async (event) => {
     if (event.body) {
         body = JSON.parse(event.body);
     }
-    let authorizedUser = event.requestContext.authorizer.claims["cognito:username"];
-    let email = event.requestContext.authorizer.claims.email;
+    let cognitoUsername = event.requestContext.authorizer.claims["cognito:username"];
+    let callerEmail = event.requestContext.authorizer.claims.email;
 
     let responsePromise = (async function(method) {
         switch(method) {
             case 'create':
-                await validate.create(body, authorizedUser, email);
-                console.log("Create validation passed");
-                return api.create(body, email);
+                return api.create(body, callerEmail, cognitoUsername);
             case 'read':
-                await validate.read(body);
-                return api.read(body, email);
+                return api.read(body, callerEmail);
             case 'update':
-                await validate.update(body);
-                return api.update(body, email);
+                return api.update(body, callerEmail);
             case 'delete':
-                await validate.delete(body);
-                return api.delete(body, email);
+                return api.delete(body, callerEmail);
             case 'list':
-                return api.list(email);
+                return api.list(callerEmail);
             default:
                 return Promise.reject({message: "Unrecognized method name ".concat(method)});
         }
