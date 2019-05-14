@@ -2,7 +2,7 @@
 //const { cognito, dynamoDB } = require('./services');
 const assert = require('assert');
 
-const dappLimitAttrName = 'dev:custom:num_dapps';
+const dappLimitAttrName = 'custom:num_dapps';
 
 // Names that should be disallowed for DappName values
 const reservedDappNames = new Set([
