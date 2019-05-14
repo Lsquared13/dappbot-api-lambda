@@ -102,30 +102,43 @@ function validateAllowedDappName(dappName, email) {
     return true;
 }
 
-async function validateCreate(body, cognitoUsername, ownerEmail) {
-    validateBodyCreate(body);
-    let dappName = cleanDappName(body.DappName);
-    validateAllowedDappName(dappName, ownerEmail);
+async function validateCreate(body, cognitoUsername, callerEmail) {
     try {
-        return await validateLimitsCreate(cognitoUsername, ownerEmail);
+        validateBodyCreate(body);
+        let dappName = cleanDappName(body.DappName);
+        validateAllowedDappName(dappName, callerEmail);
+        await validateLimitsCreate(cognitoUsername, callerEmail);
+        return {dbItem: null, err: null};
     } catch (err) {
-        throw err;
+        return {dbItem: null, err: err};
     }
 }
 
 async function validateRead(body) {
-    validateBodyRead(body);
-    return true;
+    try {
+        validateBodyRead(body);
+        return {dbItem: null, err: null};
+    } catch (err) {
+        return {dbItem: null, err: err};
+    }
 }
 
 async function validateUpdate(body) {
-    validateBodyUpdate(body);
-    return true;
+    try {
+        validateBodyUpdate(body);
+        return {dbItem: null, err: null};
+    } catch (err) {
+        return {dbItem: null, err: err};
+    }
 }
 
 async function validateDelete(body) {
-    validateBodyDelete(body);
-    return true;
+    try {
+        validateBodyDelete(body);
+        return {dbItem: null, err: null};
+    } catch (err) {
+        return {dbItem: null, err: err};
+    }
 }
 
 /*
