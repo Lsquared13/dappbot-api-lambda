@@ -34,8 +34,13 @@ async function apiCreate(body, callerEmail, cognitoUsername) {
     try {
         await validate.createAllowed(dappName, cognitoUsername, callerEmail);
 
+        let sqsMessageBody = {
+            Method: methodName,
+            DappName: dappName
+        };
+
         await callAndLog('Put DynamoDB Item', dynamoDB.putItem(dappName, callerEmail, abi, addr, web3URL, guardianURL));
-        await callAndLog('Send SQS Message', sqs.sendMessage(methodName, dappName));
+        await callAndLog('Send SQS Message', sqs.sendMessage(methodName, JSON.stringify(sqsMessageBody)));
 
         let responseBody = {
             method: methodName,
@@ -111,8 +116,13 @@ async function apiUpdate(body, callerEmail) {
             Web3URL: web3URL,
             GuardianURL: guardianURL
         };
+        let sqsMessageBody = {
+            Method: methodName,
+            DappName: dappName
+        };
+
         await callAndLog("Set DynamoDB Item State Building And Update Attributes", dynamoDB.setStateBuildingWithUpdate(dbItem, updateAttrs));
-        await callAndLog('Send SQS Message', sqs.sendMessage(methodName, dappName));
+        await callAndLog('Send SQS Message', sqs.sendMessage(methodName, JSON.stringify(sqsMessageBody)));
 
         let responseBody = {
             method: methodName,
@@ -136,8 +146,13 @@ async function apiDelete(body, callerEmail) {
     try {
         let dbItem = await validate.deleteAllowed(dappName, callerEmail);
 
+        let sqsMessageBody = {
+            Method: methodName,
+            DappName: dappName
+        };
+
         await callAndLog("Set DynamoDB Item State Deleting", dynamoDB.setStateDeleting(dbItem));
-        await callAndLog('Send SQS Message', sqs.sendMessage(methodName, dappName));
+        await callAndLog('Send SQS Message', sqs.sendMessage(methodName, JSON.stringify(sqsMessageBody)));
 
         let responseBody = {
             method: methodName,
