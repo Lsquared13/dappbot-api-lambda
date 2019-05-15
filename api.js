@@ -20,6 +20,7 @@ function callFactory(startStage) {
 }
 
 async function apiCreate(body, callerEmail, cognitoUsername) {
+    let methodName = 'create';
     validate.createBody(body);
 
     let dappName = validate.cleanName(body.DappName);
@@ -34,10 +35,10 @@ async function apiCreate(body, callerEmail, cognitoUsername) {
         await validate.createAllowed(dappName, cognitoUsername, callerEmail);
 
         await callAndLog('Put DynamoDB Item', dynamoDB.putItem(dappName, callerEmail, abi, addr, web3URL, guardianURL));
-        await callAndLog('Send SQS Message', sqs.sendMessage('create', dappName));
+        await callAndLog('Send SQS Message', sqs.sendMessage(methodName, dappName));
 
         let responseBody = {
-            method: "create",
+            method: methodName,
             message: "Dapp generation successfully initialized!  Check your URL in about 5 minutes."
         };
         return responseBody;
@@ -48,6 +49,7 @@ async function apiCreate(body, callerEmail, cognitoUsername) {
 }
 
 async function apiRead(body, callerEmail) {
+    let methodName = 'read';
     validate.readBody(body);
 
     let dappName = validate.cleanName(body.DappName);
@@ -68,7 +70,7 @@ async function apiRead(body, callerEmail) {
 
         let itemExists = Boolean(outputItem.DappName);
         let responseBody = {
-            method: "read",
+            method: methodName,
             exists: itemExists,
             item: outputItem
         };
@@ -80,6 +82,7 @@ async function apiRead(body, callerEmail) {
 }
 
 async function apiUpdate(body, callerEmail) {
+    let methodName = 'update';
     validate.updateBody(body);
 
     let dappName = validate.cleanName(body.DappName);
@@ -93,7 +96,7 @@ async function apiUpdate(body, callerEmail) {
 
     if (!abi && !web3URL && !guardianURL && !addr) {
         let responseBody = {
-            method: "update",
+            method: methodName,
             message: "No attributes specified to update."
         };
         return responseBody;
@@ -109,10 +112,10 @@ async function apiUpdate(body, callerEmail) {
             GuardianURL: guardianURL
         };
         await callAndLog("Set DynamoDB Item State Building And Update Attributes", dynamoDB.setStateBuildingWithUpdate(dbItem, updateAttrs));
-        await callAndLog('Send SQS Message', sqs.sendMessage('update', dappName));
+        await callAndLog('Send SQS Message', sqs.sendMessage(methodName, dappName));
 
         let responseBody = {
-            method: "update",
+            method: methodName,
             message: "Your Dapp was successfully updated! Allow 5 minutes for rebuild, then check your URL."
         };
         return responseBody;
@@ -123,6 +126,7 @@ async function apiUpdate(body, callerEmail) {
 }
 
 async function apiDelete(body, callerEmail) {
+    let methodName = 'delete';
     validate.deleteBody(body);
 
     let dappName = validate.cleanName(body.DappName);
@@ -133,10 +137,10 @@ async function apiDelete(body, callerEmail) {
         let dbItem = await validate.deleteAllowed(dappName, callerEmail);
 
         await callAndLog("Set DynamoDB Item State Deleting", dynamoDB.setStateDeleting(dbItem));
-        await callAndLog('Send SQS Message', sqs.sendMessage('delete', dappName));
+        await callAndLog('Send SQS Message', sqs.sendMessage(methodName, dappName));
 
         let responseBody = {
-            method: "delete",
+            method: methodName,
             message: "Your Dapp was successfully deleted."
         };
         return responseBody;
@@ -148,13 +152,14 @@ async function apiDelete(body, callerEmail) {
 }
 
 async function apiList(callerEmail) {
+    let methodName = 'list';
     let [stage, callAndLog] = callFactory('Pre-List');
 
     try {
         let ddbResponse = await callAndLog('List DynamoDB Items', dynamoDB.getByOwner(callerEmail));
         let outputItems = ddbResponse.Items.map(item => dynamoDB.toApiRepresentation(item));
         let responseBody = {
-            method: "list",
+            method: methodName,
             count: ddbResponse.Count,
             items: outputItems
         };
