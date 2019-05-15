@@ -86,9 +86,9 @@ async function apiUpdate(body, callerEmail) {
     let dappName = validate.cleanName(body.DappName);
     // These values may or may not be defined
     let abi = body.Abi;
+    let addr = body.ContractAddr;
     let web3URL = body.Web3URL;
     let guardianURL = body.GuardianURL;
-    let addr = body.ContractAddr;
 
     let [stage, callAndLog] = callFactory('Pre-Update');
 
@@ -104,6 +104,13 @@ async function apiUpdate(body, callerEmail) {
         await validate.updateAllowed(dappName, callerEmail);
 
         // TODO
+        let updateAttrs = {
+            Abi: abi,
+            ContractAddr: addr,
+            Web3URL: web3URL,
+            GuardianURL: guardianURL
+        };
+        await callAndLog("Set DynamoDB Item State Building And Update Attributes", dynamoDB.setStateBuildingWithUpdate(dappName, updateAttrs));
 
         let responseBody = {
             method: "update",
@@ -127,6 +134,7 @@ async function apiDelete(body, callerEmail) {
         await validate.deleteAllowed(dappName, callerEmail);
 
         // TODO
+        await callAndLog("Set DynamoDB Item State Deleting", dynamoDB.setStateDeleting(dappName));
 
         let responseBody = {
             method: "delete",

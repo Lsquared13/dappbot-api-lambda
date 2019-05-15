@@ -96,6 +96,34 @@ function promisePutRawDappItem(item) {
     return addAwsPromiseRetries(() => ddb.putItem(putItemParams).promise(), maxRetries);
 }
 
+async function promiseSetDappStateBuildingWithUpdate(dappName, updateAttrs) {
+    let dappItem = await promiseGetDappItem(dappName);
+    dappItem = dappItem.Item;
+    dappItem.State.S = 'BUILDING_DAPP';
+
+    if (updateAttrs.Abi) {
+        dappItem.Abi.S = updateAttrs.Abi;
+    }
+    if (updateAttrs.ContractAddr) {
+        dappItem.ContractAddr.S = updateAttrs.ContractAddr;
+    }
+    if (updateAttrs.Web3URL) {
+        dappItem.Web3URL.S = updateAttrs.Web3URL;
+    }
+    if (updateAttrs.GuardianURL) {
+        dappItem.GuardianURL.S = updateAttrs.GuardianURL;
+    }
+
+    return promisePutRawDappItem(dappItem);
+}
+
+async function promiseSetDappStateDeleting(dappName) {
+    let dappItem = await promiseGetDappItem(dappName);
+    dappItem = dappItem.Item;
+    dappItem.State.S = 'DELETING';
+    return promisePutRawDappItem(dappItem);
+}
+
 function promiseGetDappItem(dappName) {
     let maxRetries = 5;
     let getItemParams = {
@@ -153,5 +181,7 @@ module.exports = {
     putRawItem : promisePutRawDappItem,
     getItem : promiseGetDappItem,
     getByOwner : promiseGetItemsByOwner,
+    setStateBuildingWithUpdate : promiseSetDappStateBuildingWithUpdate,
+    setStateDeleting : promiseSetDappStateDeleting,
     toApiRepresentation : dbItemToApiRepresentation
 }
