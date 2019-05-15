@@ -33,9 +33,8 @@ async function apiCreate(body, callerEmail, cognitoUsername) {
     try {
         await validate.createAllowed(dappName, cognitoUsername, callerEmail);
 
-        // TODO
         await callAndLog('Put DynamoDB Item', dynamoDB.putItem(dappName, callerEmail, abi, addr, web3URL, guardianURL));
-        //await callAndLog('Send SQS Message', sqs.sendMessage('create', dappName));
+        await callAndLog('Send SQS Message', sqs.sendMessage('create', dappName));
 
         let responseBody = {
             method: "create",
@@ -103,7 +102,6 @@ async function apiUpdate(body, callerEmail) {
     try {
         let dbItem = await validate.updateAllowed(dappName, callerEmail);
 
-        // TODO
         let updateAttrs = {
             Abi: abi,
             ContractAddr: addr,
@@ -111,6 +109,7 @@ async function apiUpdate(body, callerEmail) {
             GuardianURL: guardianURL
         };
         await callAndLog("Set DynamoDB Item State Building And Update Attributes", dynamoDB.setStateBuildingWithUpdate(dbItem, updateAttrs));
+        await callAndLog('Send SQS Message', sqs.sendMessage('update', dappName));
 
         let responseBody = {
             method: "update",
@@ -133,15 +132,14 @@ async function apiDelete(body, callerEmail) {
     try {
         let dbItem = await validate.deleteAllowed(dappName, callerEmail);
 
-        // TODO
         await callAndLog("Set DynamoDB Item State Deleting", dynamoDB.setStateDeleting(dbItem));
+        await callAndLog('Send SQS Message', sqs.sendMessage('delete', dappName));
 
         let responseBody = {
             method: "delete",
             message: "Your Dapp was successfully deleted."
         };
         return responseBody;
-
     } catch (err) {
         logErr(stage, err);
         throw err;
@@ -160,7 +158,7 @@ async function apiList(callerEmail) {
             count: ddbResponse.Count,
             items: outputItems
         };
-    return responseBody;
+        return responseBody;
     } catch (err) {
         logErr(stage, err);
         throw err;
