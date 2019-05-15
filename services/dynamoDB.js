@@ -1,4 +1,3 @@
-console.log("Loading Dynamo");
 const { addAwsPromiseRetries } = require('../common');
 const { AWS, tableName } = require('../env');
 const assert = require('assert');
