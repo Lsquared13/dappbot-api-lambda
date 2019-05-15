@@ -1,6 +1,5 @@
 const { sqs, dynamoDB } = require('./services');
 const validate = require('./validate');
-const assert = require('assert');
 
 const logErr = (stage, err) => { console.log(`Error on ${stage}: `, err) }
 const logNonFatalErr = (stage, reason) => { console.log(`Ignoring non-fatal error during ${stage}: ${reason}`) }

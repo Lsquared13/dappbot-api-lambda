@@ -1,6 +1,5 @@
 'use strict';
 const api = require('./api');
-const validate = require('./validate');
 
 exports.handler = async (event) => {
     console.log("request: " + JSON.stringify(event));
@@ -10,6 +9,7 @@ exports.handler = async (event) => {
         return api.successResponse({});
     }
 
+    // Unpack Data from the event
     let method = event.pathParameters.proxy;
     let body = null;
     if (event.body) {
@@ -18,6 +18,7 @@ exports.handler = async (event) => {
     let cognitoUsername = event.requestContext.authorizer.claims["cognito:username"];
     let callerEmail = event.requestContext.authorizer.claims.email;
 
+    // Execute the request
     let responseOpts = {};
     let responsePromise = (async function(method) {
         switch(method) {
@@ -37,16 +38,15 @@ exports.handler = async (event) => {
         }
     })(method);
 
-    console.log("Response Opts", responseOpts);
-    let response = null;
     try {
         let responseBody = await responsePromise;
-        response = successResponse(responseBody, responseOpts);
+        return successResponse(responseBody, responseOpts);
     } catch (err) {
-        response = errorResponse(err, responseOpts);
+        return errorResponse(err, responseOpts);
     }
-    return response;
 };
+
+// FUNCTIONS FOR MARSHALLING RESPONSES
 
 function response(body, opts) {
     let responseCode = 200;
@@ -57,7 +57,6 @@ function response(body, opts) {
         responseCode = 201;
     }
 
-    // TODO: Replace with something useful or remove
     let responseHeaders = {
         'Content-Type': 'application/json', 
         'Access-Control-Allow-Origin': '*' 
