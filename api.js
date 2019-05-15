@@ -101,7 +101,7 @@ async function apiUpdate(body, callerEmail) {
     }
 
     try {
-        await validate.updateAllowed(dappName, callerEmail);
+        let dbItem = await validate.updateAllowed(dappName, callerEmail);
 
         // TODO
         let updateAttrs = {
@@ -110,7 +110,7 @@ async function apiUpdate(body, callerEmail) {
             Web3URL: web3URL,
             GuardianURL: guardianURL
         };
-        await callAndLog("Set DynamoDB Item State Building And Update Attributes", dynamoDB.setStateBuildingWithUpdate(dappName, updateAttrs));
+        await callAndLog("Set DynamoDB Item State Building And Update Attributes", dynamoDB.setStateBuildingWithUpdate(dbItem, updateAttrs));
 
         let responseBody = {
             method: "update",
@@ -131,10 +131,10 @@ async function apiDelete(body, callerEmail) {
     let [stage, callAndLog] = callFactory('Pre-Delete');
 
     try {
-        await validate.deleteAllowed(dappName, callerEmail);
+        let dbItem = await validate.deleteAllowed(dappName, callerEmail);
 
         // TODO
-        await callAndLog("Set DynamoDB Item State Deleting", dynamoDB.setStateDeleting(dappName));
+        await callAndLog("Set DynamoDB Item State Deleting", dynamoDB.setStateDeleting(dbItem));
 
         let responseBody = {
             method: "delete",

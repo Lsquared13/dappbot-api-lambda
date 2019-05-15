@@ -96,9 +96,7 @@ function promisePutRawDappItem(item) {
     return addAwsPromiseRetries(() => ddb.putItem(putItemParams).promise(), maxRetries);
 }
 
-async function promiseSetDappStateBuildingWithUpdate(dappName, updateAttrs) {
-    let dappItem = await promiseGetDappItem(dappName);
-    dappItem = dappItem.Item;
+async function promiseSetDappStateBuildingWithUpdate(dappItem, updateAttrs) {
     dappItem.State.S = 'BUILDING_DAPP';
 
     if (updateAttrs.Abi) {
@@ -117,9 +115,7 @@ async function promiseSetDappStateBuildingWithUpdate(dappName, updateAttrs) {
     return promisePutRawDappItem(dappItem);
 }
 
-async function promiseSetDappStateDeleting(dappName) {
-    let dappItem = await promiseGetDappItem(dappName);
-    dappItem = dappItem.Item;
+async function promiseSetDappStateDeleting(dappItem) {
     dappItem.State.S = 'DELETING';
     return promisePutRawDappItem(dappItem);
 }

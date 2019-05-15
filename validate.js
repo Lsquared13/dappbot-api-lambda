@@ -137,6 +137,8 @@ async function validateUpdateAllowed(dappName, callerEmail) {
 
     let dbOwner = dbItem.Item.OwnerEmail.S;
     assert(callerEmail === dbOwner, "You do not have permission to update the specified Dapp.");
+
+    return dbItem.Item;
 }
 
 // DELETE VALIDATION
@@ -149,10 +151,14 @@ async function validateDeleteAllowed(dappName, callerEmail) {
     let dbItem = await dynamoDB.getItem(dappName);
     assert(dbItem.Item, "Dapp Not Found");
 
-    if (isAdmin(callerEmail)) { return; }
+    if (isAdmin(callerEmail)) {
+        return dbItem.Item;
+    }
 
     let dbOwner = dbItem.Item.OwnerEmail.S;
     assert(callerEmail === dbOwner, "You do not have permission to delete the specified Dapp.");
+    
+    return dbItem.Item;
 }
 
 // HELPER FUNCTIONS
