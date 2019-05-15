@@ -36,6 +36,7 @@ const reservedDappNames = new Set([
     'guardian',
     'help',
     'home',
+    'hub',
     'marketplace',
     'quadraticvote',
     'quadraticvoting',
