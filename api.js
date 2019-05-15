@@ -6,47 +6,6 @@ const logErr = (stage, err) => { console.log(`Error on ${stage}: `, err) }
 const logNonFatalErr = (stage, reason) => { console.log(`Ignoring non-fatal error during ${stage}: ${reason}`) }
 const logSuccess = (stage, res) => { console.log(`Successfully completed ${stage}; result: `, res) }
 
-function response(body, opts) {
-    let responseCode = 200;
-    // Override response code based on opts
-    if (opts.isErr) {
-        responseCode = 500;
-    } else if (opts.isCreate) {
-        responseCode = 201;
-    }
-
-    // TODO: Replace with something useful or remove
-    let responseHeaders = {
-        'Content-Type': 'application/json', 
-        'Access-Control-Allow-Origin': '*' 
-    };
-    
-
-    let dataField = opts.isErr ? {} : body;
-    let errField = opts.isErr ? body : null;
-    let responseBody = {
-        data: dataField,
-        err: errField
-    };
-    return {
-        statusCode: responseCode,
-        headers: responseHeaders,
-        body: JSON.stringify(responseBody)
-    }
-}
-
-function successResponse(body, opts={isCreate: false}) {
-    let successOpt = {isErr: false};
-    let callOpts = {...opts, ...successOpt};
-    return response(body, callOpts);
-}
-
-function errorResponse(body, opts={isCreate: false}) {
-    let errorOpt = {isErr: true};
-    let callOpts = {...opts, ...errorOpt};
-    return response(body, callOpts);
-}
-
 // Using this factory function lets us create a new "stage" variable
 // for each invocation.  Otherwise, `stage` and `callAndLog` function would
 // need to be re-declared in each of the functions below.
@@ -82,10 +41,10 @@ async function apiCreate(body, callerEmail, cognitoUsername) {
             method: "create",
             message: "Dapp generation successfully initialized!  Check your URL in about 5 minutes."
         };
-        return successResponse(responseBody, {isCreate: true})
+        return responseBody;
     } catch (err) {
         logErr(stage, err);
-        return errorResponse(err, {isCreate: true});
+        throw err;
     }
 }
 
@@ -114,10 +73,10 @@ async function apiRead(body, callerEmail) {
             exists: itemExists,
             item: outputItem
         };
-        return successResponse(responseBody);
+        return responseBody;
     } catch (err) {
         logErr(stage, err);
-        return errorResponse(err);
+        throw err;
     }
 }
 
@@ -133,15 +92,15 @@ async function apiUpdate(body, callerEmail) {
 
     let [stage, callAndLog] = callFactory('Pre-Update');
 
-    try {
-        if (!abi && !web3URL && !guardianURL && !addr) {
-            let responseBody = {
-                method: "update",
-                message: "No attributes specified to update."
-            };
-            return successResponse(responseBody);
-        }
+    if (!abi && !web3URL && !guardianURL && !addr) {
+        let responseBody = {
+            method: "update",
+            message: "No attributes specified to update."
+        };
+        return responseBody;
+    }
 
+    try {
         await validate.updateAllowed(dappName, callerEmail);
 
         // TODO
@@ -150,10 +109,10 @@ async function apiUpdate(body, callerEmail) {
             method: "update",
             message: "Your Dapp was successfully updated! Allow 5 minutes for rebuild, then check your URL."
         };
-        return successResponse(responseBody);
+        return responseBody;
     } catch (err) {
         logErr(stage, err);
-        return errorResponse(err); 
+        throw err; 
     }
 }
 
@@ -173,11 +132,11 @@ async function apiDelete(body, callerEmail) {
             method: "delete",
             message: "Your Dapp was successfully deleted."
         };
-        return successResponse(responseBody);
+        return responseBody;
 
     } catch (err) {
         logErr(stage, err);
-        return errorResponse(err);
+        throw err;
     }
 
 }
@@ -193,10 +152,10 @@ async function apiList(callerEmail) {
             count: ddbResponse.Count,
             items: outputItems
         };
-    return successResponse(responseBody);
+    return responseBody;
     } catch (err) {
         logErr(stage, err);
-        return errorResponse(err);
+        throw err;
     }
 }
 
@@ -205,6 +164,5 @@ module.exports = {
   read : apiRead,
   update : apiUpdate,
   delete : apiDelete,
-  list : apiList,
-  errorResponse : errorResponse
+  list : apiList
 }
