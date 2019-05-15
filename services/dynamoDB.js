@@ -1,3 +1,4 @@
+const { newS3BucketName, dnsNameFromDappName, pipelineNameFromDappName } = require('./names');
 const { addAwsPromiseRetries } = require('../common');
 const { AWS, tableName } = require('../env');
 const assert = require('assert');
@@ -10,8 +11,9 @@ function serializeDdbKey(dappName) {
     return keyItem;
 }
 
-function serializeDdbItem(dappName, ownerEmail, abi, bucketName, cloudfrontDns, cloudfrontDistroId, contractAddr, web3Url, guardianUrl) {
+function serializeDdbItem(dappName, ownerEmail, abi, contractAddr, web3Url, guardianUrl, bucketName, pipelineName, dnsName, state, cloudfrontDistroId, cloudfrontDns) {
     let creationTime = new Date().toISOString();
+    // Required Params
     let item = {
         'DappName' : {S: dappName},
         'OwnerEmail' : {S: ownerEmail},
@@ -21,11 +23,18 @@ function serializeDdbItem(dappName, ownerEmail, abi, bucketName, cloudfrontDns, 
         'Web3URL' : {S: web3Url},
         'GuardianURL' : {S: guardianUrl},
         'S3BucketName' : {S: bucketName},
-        'CloudfrontDistributionId' : {S: cloudfrontDistroId},
-        'CloudfrontDnsName' : {S: cloudfrontDns},
-//        'PipelineName' : {S: pipelineName(dappName)},
-//        'DnsName' : {S: dappDNS(dappName)}
+        'PipelineName' : {S: pipelineName},
+        'DnsName' : {S: dnsName},
+        'State' : {S: state}
     };
+    
+    // Optional Params
+    if (cloudfrontDistroId) {
+        item.CloudfrontDistributionId = cloudfrontDistroId;
+    }
+    if (cloudfrontDns) {
+        item.CloudfrontDnsName = cloudfrontDns;
+    }
     return item;
 }
 
@@ -43,6 +52,7 @@ function dbItemToApiRepresentation(dbItem) {
     let contractAddr = dbItem.ContractAddr.S;
     let web3Url = dbItem.Web3URL.S;
     let guardianUrl = dbItem.GuardianURL.S;
+    let state = dbItem.State.S;
 
     let apiItem = {
         "DappName": dappName,
@@ -52,16 +62,25 @@ function dbItemToApiRepresentation(dbItem) {
         "Abi": abi,
         "ContractAddr": contractAddr,
         "Web3URL": web3Url,
-        "GuardianURL": guardianUrl
+        "GuardianURL": guardianUrl,
+        "State": state
     };
     return apiItem;
 }
 
-function promisePutDappItem(dappName, owner, abi, bucketName, cloudfrontDistroId, cloudfrontDns, contractAddr, web3Url, guardianUrl) {
+function promisePutCreatingDappItem(dappName, ownerEmail, abi, contractAddr, web3Url, guardianUrl) {
     let maxRetries = 5;
+
+    let bucketName = newS3BucketName();
+    let pipelineName = pipelineNameFromDappName(dappName);
+    let dnsName = dnsNameFromDappName(dappName);
+    let state = 'CREATING';
+    let cloudfrontDistroId = null;
+    let cloudfrontDns = null;
+
     let putItemParams = {
         TableName: tableName,
-        Item: serializeDdbItem(dappName, owner, abi, bucketName, cloudfrontDns, cloudfrontDistroId, contractAddr, web3Url, guardianUrl)
+        Item: serializeDdbItem(dappName, ownerEmail, abi, contractAddr, web3Url, guardianUrl, bucketName, pipelineName, dnsName, state, cloudfrontDistroId, cloudfrontDns)
     };
 
     return addAwsPromiseRetries(() => ddb.putItem(putItemParams).promise(), maxRetries);
@@ -85,16 +104,6 @@ function promiseGetDappItem(dappName) {
     };
 
     return addAwsPromiseRetries(() => ddb.getItem(getItemParams).promise(), maxRetries);
-}
-
-function promiseDeleteDappItem(dappName) {
-    let maxRetries = 5;
-    let deleteItemParams = {
-        TableName: tableName,
-        Key: serializeDdbKey(dappName)
-    };
-
-    return addAwsPromiseRetries(() => ddb.deleteItem(deleteItemParams).promise(), maxRetries);
 }
 
 function promiseGetItemsByOwner(ownerEmail) {
@@ -126,6 +135,7 @@ function validateDbItemForOutput(dbItem) {
     assert(dbItem.hasOwnProperty('ContractAddr'), "dbItem: required attribute 'ContractAddr' not found");
     assert(dbItem.hasOwnProperty('Web3URL'), "dbItem: required attribute 'Web3URL' not found");
     assert(dbItem.hasOwnProperty('GuardianURL'), "dbItem: required attribute 'GuardianURL' not found");
+    assert(dbItem.hasOwnProperty('State'), "dbItem: required attribute 'State' not found");
 
     assert(dbItem.DappName.hasOwnProperty('S'), "dbItem: required attribute 'DappName' has wrong shape");
     assert(dbItem.OwnerEmail.hasOwnProperty('S'), "dbItem: required attribute 'OwnerEmail' has wrong shape");
@@ -135,13 +145,13 @@ function validateDbItemForOutput(dbItem) {
     assert(dbItem.ContractAddr.hasOwnProperty('S'), "dbItem: required attribute 'ContractAddr' has wrong shape");
     assert(dbItem.Web3URL.hasOwnProperty('S'), "dbItem: required attribute 'Web3URL' has wrong shape");
     assert(dbItem.GuardianURL.hasOwnProperty('S'), "dbItem: required attribute 'GuardianURL' has wrong shape");
+    assert(dbItem.State.hasOwnProperty('S'), "dbItem: required attribute 'State' has wrong shape");
 }
 
 module.exports = {
-    putItem : promisePutDappItem,
+    putItem : promisePutCreatingDappItem,
     putRawItem : promisePutRawDappItem,
     getItem : promiseGetDappItem,
-    deleteItem : promiseDeleteDappItem,
     getByOwner : promiseGetItemsByOwner,
     toApiRepresentation : dbItemToApiRepresentation
 }

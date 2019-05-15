@@ -24,9 +24,9 @@ async function apiCreate(body, callerEmail, cognitoUsername) {
 
     let dappName = validate.cleanName(body.DappName);
     let abi = body.Abi;
+    let addr = body.ContractAddr;
     let web3URL = body.Web3URL;
     let guardianURL = body.GuardianURL;
-    let addr = body.ContractAddr;
 
     let [stage, callAndLog] = callFactory('Pre-Creation');
 
@@ -34,6 +34,7 @@ async function apiCreate(body, callerEmail, cognitoUsername) {
         await validate.createAllowed(dappName, cognitoUsername, callerEmail);
 
         // TODO
+        await callAndLog('Put DynamoDB Item', dynamoDB.putItem(dappName, callerEmail, abi, addr, web3URL, guardianURL));
         //await callAndLog('Send SQS Message', sqs.sendMessage('create', dappName));
 
         let responseBody = {
