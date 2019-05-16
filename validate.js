@@ -63,26 +63,26 @@ function validateBodyCreate(body) {
 
 async function validateLimitsCreate(cognitoUsername, ownerEmail) {
     console.log("Validating Limits for User", cognitoUsername);
-    let dappLimit = null;
-    return cognito.getUser(cognitoUsername).then(function(result) {
-        console.log("Found Cognito User", result);
-        let attrList = result.UserAttributes;
+
+    try {
+        let user = await cognito.getUser(cognitoUsername);
+        console.log("Found Cognito User", user);
+
+        let attrList = user.UserAttributes;
         let dappLimitAttr = attrList.filter(attr => attr.Name === dappLimitAttrName);
         assertInternal(dappLimitAttr.length === 1);
-        dappLimit = dappLimitAttr[0].Value;
+        let dappLimit = dappLimitAttr[0].Value;
 
-        return dynamoDB.getByOwner(ownerEmail);
-    })
-    .then(function(result) {
-        console.log("Scanned DynamoDB Table", result);
-        let numDappsOwned = result.Items.length;
+        let dappItems = await dynamoDB.getByOwner(ownerEmail);
+        console.log("Queried DynamoDB Table", dappItems);
+
+        let numDappsOwned = dappItems.Items.length;
         assertOpAllowed(numDappsOwned + 1 <= dappLimit, "User " + ownerEmail + " already at dapp limit: " + dappLimit);
         return true;
-    })
-    .catch(function(err) {
+    } catch (err) {
         console.log("Error Validating Limit", err);
         throwInternalValidationError();
-    })
+    }
 }
 
 function validateAllowedDappName(dappName, email) {
