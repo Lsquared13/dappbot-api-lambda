@@ -1,4 +1,5 @@
 const { cognito, dynamoDB } = require('./services');
+const { assertParamValid, assertOpAllowed, assertInternal, throwInternalValidationError } = require('./errors');
 const assert = require('assert');
 
 const dappLimitAttrName = 'custom:num_dapps';
@@ -53,11 +54,11 @@ const reservedDappNames = new Set([
 // CREATE VALIDATION
 
 function validateBodyCreate(body) {
-    assert(body.hasOwnProperty('DappName'), "create: required argument 'DappName' not found");
-    assert(body.hasOwnProperty('Abi'), "create: required argument 'Abi' not found");
-    assert(body.hasOwnProperty('ContractAddr'), "create: required argument 'ContractAddr' not found");
-    assert(body.hasOwnProperty('Web3URL'), "create: required argument 'Web3URL' not found");
-    assert(body.hasOwnProperty('GuardianURL'), "create: required argument 'GuardianURL' not found");
+    assertParamValid(body.hasOwnProperty('DappName'), "create: required argument 'DappName' not found");
+    assertParamValid(body.hasOwnProperty('Abi'), "create: required argument 'Abi' not found");
+    assertParamValid(body.hasOwnProperty('ContractAddr'), "create: required argument 'ContractAddr' not found");
+    assertParamValid(body.hasOwnProperty('Web3URL'), "create: required argument 'Web3URL' not found");
+    assertParamValid(body.hasOwnProperty('GuardianURL'), "create: required argument 'GuardianURL' not found");
 }
 
 async function validateLimitsCreate(cognitoUsername, ownerEmail) {
@@ -67,7 +68,7 @@ async function validateLimitsCreate(cognitoUsername, ownerEmail) {
         console.log("Found Cognito User", result);
         let attrList = result.UserAttributes;
         let dappLimitAttr = attrList.filter(attr => attr.Name === dappLimitAttrName);
-        assert(dappLimitAttr.length === 1);
+        assertInternal(dappLimitAttr.length === 1);
         dappLimit = dappLimitAttr[0].Value;
 
         return dynamoDB.getByOwner(ownerEmail);
@@ -75,12 +76,12 @@ async function validateLimitsCreate(cognitoUsername, ownerEmail) {
     .then(function(result) {
         console.log("Scanned DynamoDB Table", result);
         let numDappsOwned = result.Items.length;
-        assert(numDappsOwned + 1 <= dappLimit, "User " + ownerEmail + " already at dapp limit: " + dappLimit);
+        assertOpAllowed(numDappsOwned + 1 <= dappLimit, "User " + ownerEmail + " already at dapp limit: " + dappLimit);
         return true;
     })
     .catch(function(err) {
         console.log("Error Validating Limit", err);
-        throw err;
+        throwInternalValidationError();
     })
 }
 
@@ -89,7 +90,7 @@ function validateAllowedDappName(dappName, email) {
     if (isAdmin(email)) {
         return true;
     }
-    assert(!reservedDappNames.has(dappName), `Specified DappName ${dappName} is not an allowed name`);
+    assertOpAllowed(!reservedDappNames.has(dappName), `Specified DappName ${dappName} is not an allowed name`);
     return true;
 }
 
@@ -101,7 +102,7 @@ async function validateNameNotTaken(dappName) {
         console.log("Error retrieving DB Item for create validation", err);
         throw err;
     }
-    assert(!existingItem.Item, `DappName ${dappName} is already taken. Please choose another name.`);
+    assertOpAllowed(!existingItem.Item, `DappName ${dappName} is already taken. Please choose another name.`);
 }
 
 async function validateCreateAllowed(dappName, cognitoUsername, callerEmail) {
@@ -115,28 +116,28 @@ async function validateCreateAllowed(dappName, cognitoUsername, callerEmail) {
 // READ VALIDATION
 
 function validateBodyRead(body) {
-    assert(body.hasOwnProperty('DappName'), "read: required argument 'DappName' not found");
+    assertParamValid(body.hasOwnProperty('DappName'), "read: required argument 'DappName' not found");
 }
 
 async function validateReadAllowed(dbItem, callerEmail) {
     if (isAdmin(callerEmail)) { return; }
 
     let dbOwner = dbItem.Item.OwnerEmail.S;
-    assert(callerEmail === dbOwner, "You do not have permission to read the specified Dapp.");
+    assertOpAllowed(callerEmail === dbOwner, "You do not have permission to read the specified Dapp.");
 }
 
 // UPDATE VALIDATION
 
 function validateBodyUpdate(body) {
-    assert(body.hasOwnProperty('DappName'), "update: required argument 'DappName' not found");
+    assertParamValid(body.hasOwnProperty('DappName'), "update: required argument 'DappName' not found");
 }
 
 async function validateUpdateAllowed(dappName, callerEmail) {
     let dbItem = await dynamoDB.getItem(dappName);
-    assert(dbItem.Item, "Dapp Not Found");
+    assertOpAllowed(dbItem.Item, "Dapp Not Found");
 
     let dbOwner = dbItem.Item.OwnerEmail.S;
-    assert(callerEmail === dbOwner, "You do not have permission to update the specified Dapp.");
+    assertOpAllowed(callerEmail === dbOwner, "You do not have permission to update the specified Dapp.");
 
     return dbItem.Item;
 }
@@ -144,19 +145,19 @@ async function validateUpdateAllowed(dappName, callerEmail) {
 // DELETE VALIDATION
 
 function validateBodyDelete(body) {
-    assert(body.hasOwnProperty('DappName'), "delete: required argument 'DappName' not found");
+    assertParamValid(body.hasOwnProperty('DappName'), "delete: required argument 'DappName' not found");
 }
 
 async function validateDeleteAllowed(dappName, callerEmail) {
     let dbItem = await dynamoDB.getItem(dappName);
-    assert(dbItem.Item, "Dapp Not Found");
+    assertOpAllowed(dbItem.Item, "Dapp Not Found");
 
     if (isAdmin(callerEmail)) {
         return dbItem.Item;
     }
 
     let dbOwner = dbItem.Item.OwnerEmail.S;
-    assert(callerEmail === dbOwner, "You do not have permission to delete the specified Dapp.");
+    assertOpAllowed(callerEmail === dbOwner, "You do not have permission to delete the specified Dapp.");
     
     return dbItem.Item;
 }

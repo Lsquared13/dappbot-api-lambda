@@ -1,7 +1,7 @@
 const { newS3BucketName, dnsNameFromDappName, pipelineNameFromDappName } = require('./names');
 const { addAwsPromiseRetries } = require('../common');
 const { AWS, tableName } = require('../env');
-const assert = require('assert');
+const { assertDappValid } = require('../errors');
 const ddb = new AWS.DynamoDB({apiVersion: '2012-08-10'});
 
 function serializeDdbKey(dappName) {
@@ -151,25 +151,25 @@ function promiseGetItemsByOwner(ownerEmail) {
 }
 
 function validateDbItemForOutput(dbItem) {
-    assert(dbItem.hasOwnProperty('DappName'), "dbItem: required attribute 'DappName' not found");
-    assert(dbItem.hasOwnProperty('OwnerEmail'), "dbItem: required attribute 'OwnerEmail' not found");
-    assert(dbItem.hasOwnProperty('CreationTime'), "dbItem: required attribute 'CreationTime' not found");
-    assert(dbItem.hasOwnProperty('DnsName'), "dbItem: required attribute 'DnsName' not found");
-    assert(dbItem.hasOwnProperty('Abi'), "dbItem: required attribute 'Abi' not found");
-    assert(dbItem.hasOwnProperty('ContractAddr'), "dbItem: required attribute 'ContractAddr' not found");
-    assert(dbItem.hasOwnProperty('Web3URL'), "dbItem: required attribute 'Web3URL' not found");
-    assert(dbItem.hasOwnProperty('GuardianURL'), "dbItem: required attribute 'GuardianURL' not found");
-    assert(dbItem.hasOwnProperty('State'), "dbItem: required attribute 'State' not found");
+    assertDappValid(dbItem.hasOwnProperty('DappName'), "dbItem: required attribute 'DappName' not found");
+    assertDappValid(dbItem.hasOwnProperty('OwnerEmail'), "dbItem: required attribute 'OwnerEmail' not found");
+    assertDappValid(dbItem.hasOwnProperty('CreationTime'), "dbItem: required attribute 'CreationTime' not found");
+    assertDappValid(dbItem.hasOwnProperty('DnsName'), "dbItem: required attribute 'DnsName' not found");
+    assertDappValid(dbItem.hasOwnProperty('Abi'), "dbItem: required attribute 'Abi' not found");
+    assertDappValid(dbItem.hasOwnProperty('ContractAddr'), "dbItem: required attribute 'ContractAddr' not found");
+    assertDappValid(dbItem.hasOwnProperty('Web3URL'), "dbItem: required attribute 'Web3URL' not found");
+    assertDappValid(dbItem.hasOwnProperty('GuardianURL'), "dbItem: required attribute 'GuardianURL' not found");
+    assertDappValid(dbItem.hasOwnProperty('State'), "dbItem: required attribute 'State' not found");
 
-    assert(dbItem.DappName.hasOwnProperty('S'), "dbItem: required attribute 'DappName' has wrong shape");
-    assert(dbItem.OwnerEmail.hasOwnProperty('S'), "dbItem: required attribute 'OwnerEmail' has wrong shape");
-    assert(dbItem.CreationTime.hasOwnProperty('S'), "dbItem: required attribute 'CreationTime' has wrong shape");
-    assert(dbItem.DnsName.hasOwnProperty('S'), "dbItem: required attribute 'DnsName' has wrong shape");
-    assert(dbItem.Abi.hasOwnProperty('S'), "dbItem: required attribute 'Abi' has wrong shape");
-    assert(dbItem.ContractAddr.hasOwnProperty('S'), "dbItem: required attribute 'ContractAddr' has wrong shape");
-    assert(dbItem.Web3URL.hasOwnProperty('S'), "dbItem: required attribute 'Web3URL' has wrong shape");
-    assert(dbItem.GuardianURL.hasOwnProperty('S'), "dbItem: required attribute 'GuardianURL' has wrong shape");
-    assert(dbItem.State.hasOwnProperty('S'), "dbItem: required attribute 'State' has wrong shape");
+    assertDappValid(dbItem.DappName.hasOwnProperty('S'), "dbItem: required attribute 'DappName' has wrong shape");
+    assertDappValid(dbItem.OwnerEmail.hasOwnProperty('S'), "dbItem: required attribute 'OwnerEmail' has wrong shape");
+    assertDappValid(dbItem.CreationTime.hasOwnProperty('S'), "dbItem: required attribute 'CreationTime' has wrong shape");
+    assertDappValid(dbItem.DnsName.hasOwnProperty('S'), "dbItem: required attribute 'DnsName' has wrong shape");
+    assertDappValid(dbItem.Abi.hasOwnProperty('S'), "dbItem: required attribute 'Abi' has wrong shape");
+    assertDappValid(dbItem.ContractAddr.hasOwnProperty('S'), "dbItem: required attribute 'ContractAddr' has wrong shape");
+    assertDappValid(dbItem.Web3URL.hasOwnProperty('S'), "dbItem: required attribute 'Web3URL' has wrong shape");
+    assertDappValid(dbItem.GuardianURL.hasOwnProperty('S'), "dbItem: required attribute 'GuardianURL' has wrong shape");
+    assertDappValid(dbItem.State.hasOwnProperty('S'), "dbItem: required attribute 'State' has wrong shape");
 }
 
 module.exports = {
