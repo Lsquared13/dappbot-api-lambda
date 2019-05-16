@@ -1,6 +1,5 @@
 const { cognito, dynamoDB } = require('./services');
 const { assertParamValid, assertOpAllowed, assertInternal, throwInternalValidationError } = require('./errors');
-const assert = require('assert');
 
 const dappLimitAttrName = 'custom:num_dapps';
 
