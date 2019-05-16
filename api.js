@@ -1,22 +1,19 @@
 const { sqs, dynamoDB } = require('./services');
 const validate = require('./validate');
 
-const logErr = (stage, err) => { console.log(`Error on ${stage}: `, err) }
-const logNonFatalErr = (stage, reason) => { console.log(`Ignoring non-fatal error during ${stage}: ${reason}`) }
 const logSuccess = (stage, res) => { console.log(`Successfully completed ${stage}; result: `, res) }
+const logErr = (stage, err) => { console.log(`Error on ${stage}: `, err) }
 
-// Using this factory function lets us create a new "stage" variable
-// for each invocation.  Otherwise, `stage` and `callAndLog` function would
-// need to be re-declared in each of the functions below.
-function callFactory(startStage) {
-    let stage = startStage;
-    const callAndLog = async (newStage, promise) => {
-        stage = newStage;
+
+async function callAndLog(stage, promise) {
+    try {
         let res = await promise;
-        logSuccess(newStage, res);
+        logSuccess(stage, res);
         return res;
+    } catch (err) {
+        logErr(stage, err);
+        throw err;
     }
-    return [stage, callAndLog];
 }
 
 async function apiCreate(body, callerEmail, cognitoUsername) {
@@ -28,8 +25,6 @@ async function apiCreate(body, callerEmail, cognitoUsername) {
     let addr = body.ContractAddr;
     let web3URL = body.Web3URL;
     let guardianURL = body.GuardianURL;
-
-    let [stage, callAndLog] = callFactory('Pre-Creation');
 
     try {
         await validate.createAllowed(dappName, cognitoUsername, callerEmail);
@@ -48,7 +43,6 @@ async function apiCreate(body, callerEmail, cognitoUsername) {
         };
         return responseBody;
     } catch (err) {
-        logErr(stage, err);
         throw err;
     }
 }
@@ -58,8 +52,6 @@ async function apiRead(body, callerEmail) {
     validate.readBody(body);
 
     let dappName = validate.cleanName(body.DappName);
-
-    let [stage, callAndLog] = callFactory('Pre-Read');
 
     try {
         const dbItem = await callAndLog('Get DynamoDB Item', dynamoDB.getItem(dappName));
@@ -81,7 +73,6 @@ async function apiRead(body, callerEmail) {
         };
         return responseBody;
     } catch (err) {
-        logErr(stage, err);
         throw err;
     }
 }
@@ -96,8 +87,6 @@ async function apiUpdate(body, callerEmail) {
     let addr = body.ContractAddr;
     let web3URL = body.Web3URL;
     let guardianURL = body.GuardianURL;
-
-    let [stage, callAndLog] = callFactory('Pre-Update');
 
     if (!abi && !web3URL && !guardianURL && !addr) {
         let responseBody = {
@@ -130,7 +119,6 @@ async function apiUpdate(body, callerEmail) {
         };
         return responseBody;
     } catch (err) {
-        logErr(stage, err);
         throw err; 
     }
 }
@@ -140,8 +128,6 @@ async function apiDelete(body, callerEmail) {
     validate.deleteBody(body);
 
     let dappName = validate.cleanName(body.DappName);
-
-    let [stage, callAndLog] = callFactory('Pre-Delete');
 
     try {
         let dbItem = await validate.deleteAllowed(dappName, callerEmail);
@@ -160,7 +146,6 @@ async function apiDelete(body, callerEmail) {
         };
         return responseBody;
     } catch (err) {
-        logErr(stage, err);
         throw err;
     }
 
@@ -168,7 +153,6 @@ async function apiDelete(body, callerEmail) {
 
 async function apiList(callerEmail) {
     let methodName = 'list';
-    let [stage, callAndLog] = callFactory('Pre-List');
 
     try {
         let ddbResponse = await callAndLog('List DynamoDB Items', dynamoDB.getByOwner(callerEmail));
@@ -180,7 +164,6 @@ async function apiList(callerEmail) {
         };
         return responseBody;
     } catch (err) {
-        logErr(stage, err);
         throw err;
     }
 }
