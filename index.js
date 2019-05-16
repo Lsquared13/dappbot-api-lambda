@@ -6,7 +6,7 @@ exports.handler = async (event) => {
 
     // Auto-return success for CORS pre-flight OPTIONS requests
     if (event.httpMethod.toLowerCase() == 'options'){
-        return api.successResponse({});
+        return successResponse({});
     }
 
     // Unpack Data from the event
