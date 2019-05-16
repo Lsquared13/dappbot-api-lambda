@@ -19,7 +19,7 @@ This will produce an `dappbot-api-lambda.zip` at the package root directory.  Th
     - **`ContractAddr`**: The deployed address of your chosen contract.
     - **`Web3URL`**: The URL for your HTTPProvider.  Our transaction executors work for Eximchain dapps, Infura would work for Ethereum dapps.  Include `https://`
     - **`GuardianURL`**: The URL of your Guardian instance.  Include `https://`
-  - Spins up all associated infrastructure and returns a success.
+  - Validates input, queues a create request to be processed asynchronously, and returns a success.
 - **`/read`**
   - Accepts a body with key `DappName`.
   - Returns a DappItem as defined below.
@@ -30,10 +30,10 @@ This will produce an `dappbot-api-lambda.zip` at the package root directory.  Th
     - **`ContractAddr`**: The deployed address of your chosen contract.
     - **`Web3URL`**: The URL for your HTTPProvider.  Our transaction executors work for Eximchain dapps, Infura would work for Ethereum dapps.  Include `https://`
     - **`GuardianURL`**: The URL of your Guardian instance.  Include `https://`
-  - Simply returns success if no optional keys were specified. Otherwise, updates the values of the specified optional keys in the dapp and returns success.
+  - Simply returns success if no optional keys were specified. Otherwise, updates the values of the specified optional keys in the dapp, sets its state to `BUILDING_DAPP` and returns success.
 - **`/delete`**
   - Accepts a body with key `DappName`.
-  - Destroys all associated resources and returns a success.
+  - Validates input, sets state to `DELETING`, queues a request to destroy all associated resources asynchronously, and returns a success.
 - **`/list`**
   - Accepts an empty body with no keys.
   - Returns a DappItem corresponding to every Dapp owned by the calling account.
@@ -53,9 +53,21 @@ A DappItem is a JSON object used in some responses. It has the following structu
   "Abi": "<OBJECT: The ABI for the Dapp>",
   "ContractAddr": "<STRING: The address which hosts the contract for the Dapp>",
   "Web3URL": "<STRING: The URL at which to access an Eximchain or Ethereum node>",
-  "GuardianURL": "<STRING: The URL of the Guardian instance to use for this Dapp>"
+  "GuardianURL": "<STRING: The URL of the Guardian instance to use for this Dapp>",
+  "State": "<STRING: One of the states listed below describing the state of the Dapp>"
 }
 ```
+
+### State
+
+The state describes the current state of the resources associated with a Dapp. It can take the following values:
+
+- `CREATING` - The resources to host the Dapp are still being created.
+- `BUILDING_DAPP` - The infrastructure resources are complete, but the Dapp is still being built by Dappsmith.
+- `AVAILABLE` - The most up-to-date version of the Dapp is built and available at your URL.
+- `DELETING` - The resources associated with the Dapp are being destroyed.
+- `FAILED` - A `create` or `update` command failed to move the Dapp to the `AVAILABLE` state. The Dapp may be deleted from this state.
+- `DEPOSED` - A `delete` command failed to finish removing the Dapp in the `DELETING` state. The Dapp cannot be deleted from this state. Intervention from support or a cleanup component is required.  This implies either a bug in Delete logic, or an AWS service outage.
 
 ### Success Responses
 
