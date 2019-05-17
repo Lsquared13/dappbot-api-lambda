@@ -9,7 +9,6 @@ exports.handler = async (event:APIGatewayEvent) => {
     if (event.httpMethod.toLowerCase() == 'options'){
         return successResponse({});
     }
-    console.log("Successfully built and hit my handler!");
 
     // Unpack Data from the event
     let method = event.pathParameters.proxy;
@@ -17,7 +16,7 @@ exports.handler = async (event:APIGatewayEvent) => {
     if (event.body) {
         body = JSON.parse(event.body);
     }
-    return successResponse({body});
+
     let cognitoUsername = event.requestContext.authorizer.claims["cognito:username"];
     let callerEmail = event.requestContext.authorizer.claims.email;
 
