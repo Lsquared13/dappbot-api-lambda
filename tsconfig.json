@@ -1,0 +1,20 @@
+{
+  "include": ["./src/**/*"],
+  "exclude": ["node_modules", "build"],
+  "compileOnSave": true,
+  "compilerOptions": {
+      "target": "es5",            // Compatible with older browsers
+      "lib": ["es5", "es6", "es7", "es2017", "dom"],
+      "module": "commonjs",            // Compatible with both Node.js and browser
+      "moduleResolution": "node", // Tell tsc to look in node_modules for modules
+      "sourceMap": true,          // Creates *.js.map files
+      "strict": true,             // Strict types, eg. prohibits `var x=0; x=null`
+      "alwaysStrict": true,        // Enable JavaScript's "use strict" mode
+      "types" : ["node"],
+      "outDir": "build",
+      "sourceRoot": "src",
+      "allowSyntheticDefaultImports": true,
+      "esModuleInterop": true,
+      "typeRoots": ["./types", "./node_modules/@types"]
+    }
+}
