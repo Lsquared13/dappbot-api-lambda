@@ -12,12 +12,13 @@ function serializeDdbKey(dappName) {
 }
 
 function serializeDdbItem(dappName, ownerEmail, abi, contractAddr, web3Url, guardianUrl, bucketName, pipelineName, dnsName, state, cloudfrontDistroId, cloudfrontDns) {
-    let creationTime = new Date().toISOString();
+    let now = new Date().toISOString();
     // Required Params
     let item = {
         'DappName' : {S: dappName},
         'OwnerEmail' : {S: ownerEmail},
-        'CreationTime' : {S: creationTime},
+        'CreationTime' : {S: now},
+        'UpdatedAt' : {S: now},
         'Abi' : {S: abi},
         'ContractAddr' : {S: contractAddr},
         'Web3URL' : {S: web3Url},
@@ -47,6 +48,7 @@ function dbItemToApiRepresentation(dbItem) {
     let dappName = dbItem.DappName.S;
     let ownerEmail = dbItem.OwnerEmail.S;
     let creationTime = dbItem.CreationTime.S;
+    let updatedAt = dbItem.UpdatedAt.S;
     let dnsName = dbItem.DnsName.S;
     let abi = dbItem.Abi.S;
     let contractAddr = dbItem.ContractAddr.S;
@@ -58,6 +60,7 @@ function dbItemToApiRepresentation(dbItem) {
         "DappName": dappName,
         "OwnerEmail": ownerEmail,
         "CreationTime": creationTime,
+        "UpdatedAt": updatedAt,
         "DnsName": dnsName,
         "Abi": abi,
         "ContractAddr": contractAddr,
@@ -97,7 +100,9 @@ function promisePutRawDappItem(item) {
 }
 
 async function promiseSetDappStateBuildingWithUpdate(dappItem, updateAttrs) {
+    let now = new Date().toISOString();
     dappItem.State.S = 'BUILDING_DAPP';
+    dappItem.UpdatedAt.S = now;
 
     if (updateAttrs.Abi) {
         dappItem.Abi.S = updateAttrs.Abi;
@@ -116,7 +121,9 @@ async function promiseSetDappStateBuildingWithUpdate(dappItem, updateAttrs) {
 }
 
 async function promiseSetDappStateDeleting(dappItem) {
+    let now = new Date().toISOString();
     dappItem.State.S = 'DELETING';
+    dappItem.UpdatedAt.S = now;
     return promisePutRawDappItem(dappItem);
 }
 
@@ -154,6 +161,7 @@ function validateDbItemForOutput(dbItem) {
     assertDappValid(dbItem.hasOwnProperty('DappName'), "dbItem: required attribute 'DappName' not found");
     assertDappValid(dbItem.hasOwnProperty('OwnerEmail'), "dbItem: required attribute 'OwnerEmail' not found");
     assertDappValid(dbItem.hasOwnProperty('CreationTime'), "dbItem: required attribute 'CreationTime' not found");
+    assertDappValid(dbItem.hasOwnProperty('UpdatedAt'), "dbItem: required attribute 'UpdatedAt' not found");
     assertDappValid(dbItem.hasOwnProperty('DnsName'), "dbItem: required attribute 'DnsName' not found");
     assertDappValid(dbItem.hasOwnProperty('Abi'), "dbItem: required attribute 'Abi' not found");
     assertDappValid(dbItem.hasOwnProperty('ContractAddr'), "dbItem: required attribute 'ContractAddr' not found");
@@ -164,6 +172,7 @@ function validateDbItemForOutput(dbItem) {
     assertDappValid(dbItem.DappName.hasOwnProperty('S'), "dbItem: required attribute 'DappName' has wrong shape");
     assertDappValid(dbItem.OwnerEmail.hasOwnProperty('S'), "dbItem: required attribute 'OwnerEmail' has wrong shape");
     assertDappValid(dbItem.CreationTime.hasOwnProperty('S'), "dbItem: required attribute 'CreationTime' has wrong shape");
+    assertDappValid(dbItem.UpdatedAt.hasOwnProperty('S'), "dbItem: required attribute 'UpdatedAt' has wrong shape");
     assertDappValid(dbItem.DnsName.hasOwnProperty('S'), "dbItem: required attribute 'DnsName' has wrong shape");
     assertDappValid(dbItem.Abi.hasOwnProperty('S'), "dbItem: required attribute 'Abi' has wrong shape");
     assertDappValid(dbItem.ContractAddr.hasOwnProperty('S'), "dbItem: required attribute 'ContractAddr' has wrong shape");
