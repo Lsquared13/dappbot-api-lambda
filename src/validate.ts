@@ -180,7 +180,10 @@ function isAdmin(email:string) {
 }
 
 function cleanDappName(name:string) {
-    return name.toLowerCase().replace(/\s/g, '-').replace(/[^A-Za-z0-9-]/g, '')
+    return name.toLowerCase()
+        .replace(/\s/g, '-') // Convert spaces to hyphens
+        .replace(/[^A-Za-z0-9-]/g, '') // Remove non-alphanumerics
+        .replace(/-*$|^-*/g, '') // Trim hyphens off the front & back
 }
 
 export default {
