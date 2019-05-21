@@ -66,10 +66,6 @@ export function throwInternalValidationError() {
     return assertInternal(false);
 }
 
-const Asserts = {
-
-}
-
 export default {
     assertParamValid : assertParameterValid,
     assertOpAllowed : assertOperationAllowed,
