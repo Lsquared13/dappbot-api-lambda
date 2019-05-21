@@ -1,8 +1,8 @@
-const { addAwsPromiseRetries } = require('../common');
-const { AWS, cognitoUserPoolId } = require('../env');
+import { AWS, cognitoUserPoolId } from '../env';
+import { addAwsPromiseRetries } from '../common';
 const cognito = new AWS.CognitoIdentityServiceProvider({apiVersion: '2016-04-18'});
 
-function promiseAdminGetUser(cognitoUsername) {
+function promiseAdminGetUser(cognitoUsername:string) {
     let maxRetries = 5;
     let params = {
         UserPoolId: cognitoUserPoolId,
@@ -11,6 +11,6 @@ function promiseAdminGetUser(cognitoUsername) {
     return addAwsPromiseRetries(() => cognito.adminGetUser(params).promise(), maxRetries);
 }
 
-module.exports = {
+export default {
     getUser : promiseAdminGetUser
 }

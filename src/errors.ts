@@ -1,70 +1,70 @@
 // CUSTOM ERROR TYPES
-
-class ValidationError {
-    constructor(message) {
+export class ValidationError {
+    name: string
+    message: string
+    constructor(message:string) {
         this.name = "ValidationError";
         this.message = message;
     }
 }
 
-class ParameterValidationError extends ValidationError {
-    constructor(message) {
+export class ParameterValidationError extends ValidationError {
+    constructor(message:string) {
         super(message);
         this.name = "ParameterValidationError";
     }
 }
 
-class OperationNotAllowedError extends ValidationError {
-    constructor(message) {
+export class OperationNotAllowedError extends ValidationError {
+    constructor(message:string) {
         super(message);
         this.name = "OperationNotAllowed";
     }
 }
 
-class DappItemValidationError extends ValidationError {
-    constructor(message) {
+export class DappItemValidationError extends ValidationError {
+    constructor(message:string) {
         super(message);
         this.name = "DappItemValidationError";
     }
 }
 
-class InternalValidationError extends ValidationError {
-    constructor(message) {
+export class InternalValidationError extends ValidationError {
+    constructor(message:string) {
         super(message);
         this.name = "InternalValidationError";
     }
 }
 
 // ASSERT METHODS
-
-function assert(condition, message, errorType=ValidationError) {
+function assert(condition:any, message:string, errorType=ValidationError) {
     if (!condition) {
         throw new errorType(message);
     }
 }
 
-function assertParameterValid(condition, message) {
+export function assertParameterValid(condition:any, message:string) {
     return assert(condition, message, ParameterValidationError);
 }
 
-function assertOperationAllowed(condition, message) {
+export function assertOperationAllowed(condition:any, message:string) {
     return assert(condition, message, OperationNotAllowedError);
 }
 
-function assertDappItemValid(condition, message) {
+export function assertDappItemValid(condition:any, message:string) {
     return assert(condition, message, DappItemValidationError);
 }
 
-function assertInternal(condition) {
+export function assertInternal(condition:any) {
     let message = "Internal error during validation";
     return assert(condition, message, InternalValidationError);
 }
 
-function throwInternalValidationError() {
+export function throwInternalValidationError() {
     return assertInternal(false);
 }
 
-module.exports = {
+export default {
     assertParamValid : assertParameterValid,
     assertOpAllowed : assertOperationAllowed,
     assertDappValid : assertDappItemValid,

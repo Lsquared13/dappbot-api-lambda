@@ -1,7 +1,7 @@
 /*
 Returns a Promise that rejects with reason after msDelay milliseconds
 */
-function rejectDelay(reason) {
+export function rejectDelay(reason:string) {
     let msDelay = 700;
     return new Promise(function(resolve, reject) {
         setTimeout(reject.bind(null, reason), msDelay); 
@@ -12,9 +12,9 @@ function rejectDelay(reason) {
 Retries a promise returned by promiseGenerator up to maxRetries times as long as the error is retryable
 Based on https://stackoverflow.com/questions/38213668/promise-retry-design-patterns
 */
-function addAwsPromiseRetries(promiseGenerator, maxRetries) {
+export function addAwsPromiseRetries(promiseGenerator:()=>Promise<any>, maxRetries:number) {
     // Ensure we call promiseGenerator on the first iteration
-    let p = Promise.reject({retryable: true});
+    let p:Promise<any> = Promise.reject({retryable: true});
 
     /*
     Appends maxRetries number of retry and delay promises to an AWS promise, returning once a retry promise resolves.
@@ -31,6 +31,22 @@ function addAwsPromiseRetries(promiseGenerator, maxRetries) {
     return p;
 }
 
-module.exports = { 
-    addAwsPromiseRetries
-};
+export interface ValidCreateBody {
+    DappName: string
+    Abi : string
+    ContractAddr: string
+    Web3URL: string
+    GuardianURL: string
+}
+
+export interface DappApiRepresentation extends ValidCreateBody {
+    OwnerEmail: string
+    CreationTime: string
+    DnsName: string
+    State : string
+}
+
+export interface ResponseOptions {
+    isErr? : boolean
+    isCreate? : boolean
+}

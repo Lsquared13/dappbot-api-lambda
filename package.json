@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "npm i; rm -f ./dappbot-api-lambda.zip; zip -r ./dappbot-api-lambda.zip . -x ./.git/**\\*"
+    "build": "npm i; tsc; cd build; zip -r ../dappbot-api-lambda.zip *; cd .."
   },
   "repository": {
     "type": "git",
@@ -17,5 +17,9 @@
     "url": "https://github.com/Eximchain/dappbot-api-lambda/issues"
   },
   "homepage": "https://github.com/Eximchain/dappbot-api-lambda#readme",
-  "dependencies": {}
+  "dependencies": {
+    "@types/aws-sdk": "^2.7.0",
+    "@types/node": "^12.0.2"
+  },
+  "devDependencies": {}
 }

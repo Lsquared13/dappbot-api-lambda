@@ -1,11 +1,14 @@
-const { sqs, dynamoDB } = require('./services');
-const validate = require('./validate');
+import services from './services';
+const { sqs, dynamoDB } = services; 
+import { DappApiRepresentation } from './common';
+import validate from './validate';
+import { PutItemInputAttributeMap } from 'aws-sdk/clients/dynamodb';
 
-const logSuccess = (stage, res) => { console.log(`Successfully completed ${stage}; result: `, res) }
-const logErr = (stage, err) => { console.log(`Error on ${stage}: `, err) }
+const logSuccess = (stage:string, res:any) => { console.log(`Successfully completed ${stage}; result: `, res) }
+const logErr = (stage:string, err:any) => { console.log(`Error on ${stage}: `, err) }
 
 
-async function callAndLog(stage, promise) {
+async function callAndLog(stage:string, promise:Promise<any>) {
     try {
         let res = await promise;
         logSuccess(stage, res);
@@ -16,7 +19,7 @@ async function callAndLog(stage, promise) {
     }
 }
 
-async function apiCreate(body, callerEmail, cognitoUsername) {
+async function apiCreate(body:any, callerEmail:string, cognitoUsername:string) {
     const methodName = 'create';
     validate.createBody(body);
 
@@ -43,7 +46,7 @@ async function apiCreate(body, callerEmail, cognitoUsername) {
     return responseBody;
 }
 
-async function apiRead(body, callerEmail) {
+async function apiRead(body:any, callerEmail:string) {
     const methodName = 'read';
     validate.readBody(body);
 
@@ -60,7 +63,7 @@ async function apiRead(body, callerEmail) {
         outputItem = {};
     }
 
-    let itemExists = Boolean(outputItem.DappName);
+    let itemExists = !!(outputItem as DappApiRepresentation).DappName;
     let responseBody = {
         method: methodName,
         exists: itemExists,
@@ -69,7 +72,7 @@ async function apiRead(body, callerEmail) {
     return responseBody;
 }
 
-async function apiUpdate(body, callerEmail) {
+async function apiUpdate(body:any, callerEmail:string) {
     const methodName = 'update';
     validate.updateBody(body);
 
@@ -111,7 +114,7 @@ async function apiUpdate(body, callerEmail) {
     return responseBody;
 }
 
-async function apiDelete(body, callerEmail) {
+async function apiDelete(body:any, callerEmail:string) {
     const methodName = 'delete';
     validate.deleteBody(body);
 
@@ -134,11 +137,11 @@ async function apiDelete(body, callerEmail) {
     return responseBody;
 }
 
-async function apiList(callerEmail) {
+async function apiList(callerEmail:string) {
     const methodName = 'list';
 
     let ddbResponse = await callAndLog('List DynamoDB Items', dynamoDB.getByOwner(callerEmail));
-    let outputItems = ddbResponse.Items.map(item => dynamoDB.toApiRepresentation(item));
+    let outputItems = ddbResponse.Items.map((item:PutItemInputAttributeMap) => dynamoDB.toApiRepresentation(item));
     let responseBody = {
         method: methodName,
         count: ddbResponse.Count,
@@ -147,10 +150,10 @@ async function apiList(callerEmail) {
     return responseBody;
 }
 
-module.exports = {
-  create : apiCreate,
-  read : apiRead,
-  update : apiUpdate,
-  delete : apiDelete,
-  list : apiList
+export default {
+    create : apiCreate,
+    read : apiRead,
+    update : apiUpdate,
+    delete : apiDelete,
+    list : apiList
 }

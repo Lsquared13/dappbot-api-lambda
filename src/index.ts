@@ -1,9 +1,11 @@
 'use strict';
-const api = require('./api');
+import api from './api';
+import { ResponseOptions } from './common';
+import { APIGatewayEvent } from './gateway-event-type';
 
-exports.handler = async (event) => {
+exports.handler = async (event:APIGatewayEvent) => {
     console.log("request: " + JSON.stringify(event));
-
+    
     // Auto-return success for CORS pre-flight OPTIONS requests
     if (event.httpMethod.toLowerCase() == 'options'){
         return successResponse({});
@@ -11,15 +13,16 @@ exports.handler = async (event) => {
 
     // Unpack Data from the event
     let method = event.pathParameters.proxy;
-    let body = null;
+    let body;
     if (event.body) {
         body = JSON.parse(event.body);
     }
+
     let cognitoUsername = event.requestContext.authorizer.claims["cognito:username"];
     let callerEmail = event.requestContext.authorizer.claims.email;
 
     // Execute the request
-    let responseOpts = {};
+    let responseOpts:ResponseOptions = {};
     let responsePromise = (async function(method) {
         switch(method) {
             case 'create':
@@ -48,7 +51,7 @@ exports.handler = async (event) => {
 
 // FUNCTIONS FOR MARSHALLING RESPONSES
 
-function response(body, opts) {
+function response(body:any, opts:ResponseOptions) {
     let responseCode = 200;
     // Override response code based on opts
     if (opts.isErr) {
@@ -76,13 +79,13 @@ function response(body, opts) {
     }
 }
 
-function successResponse(body, opts={isCreate: false}) {
+function successResponse(body:any, opts:ResponseOptions={isCreate: false}) {
     let successOpt = {isErr: false};
     let callOpts = {...opts, ...successOpt};
     return response(body, callOpts);
 }
 
-function errorResponse(body, opts={isCreate: false}) {
+function errorResponse(body:any, opts:ResponseOptions={isCreate: false}) {
     let errorOpt = {isErr: true};
     let callOpts = {...opts, ...errorOpt};
     return response(body, callOpts);

@@ -3,19 +3,19 @@ const { dnsRoot } = require('../env');
 
 const s3BucketPrefix = "exim-abi-clerk-";
 
-function createS3BucketName() {
+export function createS3BucketName() {
     return s3BucketPrefix.concat(uuidv4());
 }
 
-function dnsNameFromDappName(dappName) {
+export function dnsNameFromDappName(dappName:string) {
     return dappName.concat(dnsRoot);
 }
 
-function pipelineNameFromDappName(dappName) {
+export function pipelineNameFromDappName(dappName:string) {
     return `${dappName}${dnsRoot}`
   }
 
-module.exports = {
+export default {
     newS3BucketName : createS3BucketName,
     dnsNameFromDappName : dnsNameFromDappName,
     pipelineNameFromDappName : pipelineNameFromDappName
