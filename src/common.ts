@@ -39,15 +39,10 @@ export interface ValidCreateBody {
     GuardianURL: string
 }
 
-export interface DappApiRepresentation {
-    DappName: string
+export interface DappApiRepresentation extends ValidCreateBody {
     OwnerEmail: string
     CreationTime: string
     DnsName: string
-    Abi: string
-    ContractAddr: string
-    Web3URL: string
-    GuardianURL: string
     State : string
 }
 
