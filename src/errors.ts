@@ -1,5 +1,3 @@
-import { String } from "aws-sdk/clients/elasticache";
-
 // CUSTOM ERROR TYPES
 export class ValidationError {
     name: string
