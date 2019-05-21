@@ -5,6 +5,7 @@ import { APIGatewayEvent } from './gateway-event-type';
 
 exports.handler = async (event:APIGatewayEvent) => {
     console.log("request: " + JSON.stringify(event));
+    
     // Auto-return success for CORS pre-flight OPTIONS requests
     if (event.httpMethod.toLowerCase() == 'options'){
         return successResponse({});

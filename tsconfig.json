@@ -4,10 +4,10 @@
   "compileOnSave": true,
   "compilerOptions": {
       "target": "es5",            // Compatible with older browsers
-      "lib": ["es5", "es6", "es7", "es2017", "dom"],
       "module": "commonjs",            // Compatible with both Node.js and browser
       "moduleResolution": "node", // Tell tsc to look in node_modules for modules
-      "sourceMap": true,          // Creates *.js.map files
+      "sourceMap": false,          // Creates *.js.map files
+      "inlineSourceMap": true,
       "strict": true,             // Strict types, eg. prohibits `var x=0; x=null`
       "alwaysStrict": true,        // Enable JavaScript's "use strict" mode
       "types" : ["node"],
