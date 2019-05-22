@@ -1,5 +1,5 @@
 import services from './services';
-const { sqs, dynamoDB } = services; 
+const { sqs, dynamoDB, names } = services; 
 import { DappApiRepresentation } from './common';
 import validate from './validate';
 import { PutItemInputAttributeMap } from 'aws-sdk/clients/dynamodb';
@@ -23,7 +23,7 @@ async function apiCreate(body:any, callerEmail:string, cognitoUsername:string) {
     const methodName = 'create';
     validate.createBody(body);
 
-    let id = validate.cleanName(body.Id);
+    let id = names.newId();
     let abi = body.Abi;
     let addr = body.ContractAddr;
     let web3URL = body.Web3URL;
@@ -41,7 +41,8 @@ async function apiCreate(body:any, callerEmail:string, cognitoUsername:string) {
 
     let responseBody = {
         method: methodName,
-        message: "Dapp generation successfully initialized!  Check your URL in about 5 minutes."
+        message: "Dapp generation successfully initialized!  Check your URL in about 5 minutes.",
+        id: id
     };
     return responseBody;
 }

@@ -13,9 +13,14 @@ export function dnsNameFromId(id:string) {
 
 export function pipelineNameFromId(id:string) {
     return `${id}${dnsRoot}`
-  }
+}
+
+export function generateNewId() {
+    return uuidv4();
+}
 
 export default {
+    newId : generateNewId,
     newS3BucketName : createS3BucketName,
     dnsNameFromId : dnsNameFromId,
     pipelineNameFromId : pipelineNameFromId

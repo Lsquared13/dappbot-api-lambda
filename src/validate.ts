@@ -57,7 +57,6 @@ const reservedIds = new Set([
 // CREATE VALIDATION
 
 function validateBodyCreate(body:Object) {
-    assertParameterValid(body.hasOwnProperty('Id'), "create: required argument 'Id' not found");
     assertParameterValid(body.hasOwnProperty('Abi'), "create: required argument 'Abi' not found");
     assertParameterValid(body.hasOwnProperty('ContractAddr'), "create: required argument 'ContractAddr' not found");
     assertParameterValid(body.hasOwnProperty('Web3URL'), "create: required argument 'Web3URL' not found");
@@ -109,7 +108,6 @@ async function validateNameNotTaken(id:string) {
 }
 
 async function validateCreateAllowed(id:string, cognitoUsername:string, callerEmail:string) {
-    validateAllowedId(id, callerEmail);
     let limitCheck = validateLimitsCreate(cognitoUsername, callerEmail);
     let nameTakenCheck = validateNameNotTaken(id);
     await limitCheck;
@@ -180,11 +178,9 @@ function isAdmin(email:string) {
     return email === adminEmail;
 }
 
+// TODO: Define ID regex and coerce to that
 function cleanId(name:string) {
-    return name.toLowerCase()
-        .replace(/\s/g, '-') // Convert spaces to hyphens
-        .replace(/[^A-Za-z0-9-]/g, '') // Remove non-alphanumerics
-        .replace(/-*$|^-*/g, '') // Trim hyphens off the front & back
+    return name;
 }
 
 export default {
