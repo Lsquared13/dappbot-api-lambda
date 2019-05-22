@@ -23,20 +23,20 @@ async function apiCreate(body:any, callerEmail:string, cognitoUsername:string) {
     const methodName = 'create';
     validate.createBody(body);
 
-    let dappName = validate.cleanName(body.DappName);
+    let id = validate.cleanName(body.Id);
     let abi = body.Abi;
     let addr = body.ContractAddr;
     let web3URL = body.Web3URL;
     let guardianURL = body.GuardianURL;
 
-    await validate.createAllowed(dappName, cognitoUsername, callerEmail);
+    await validate.createAllowed(id, cognitoUsername, callerEmail);
 
     let sqsMessageBody = {
         Method: methodName,
-        DappName: dappName
+        Id: id
     };
 
-    await callAndLog('Put DynamoDB Item', dynamoDB.putItem(dappName, callerEmail, abi, addr, web3URL, guardianURL));
+    await callAndLog('Put DynamoDB Item', dynamoDB.putItem(id, callerEmail, abi, addr, web3URL, guardianURL));
     await callAndLog('Send SQS Message', sqs.sendMessage(methodName, JSON.stringify(sqsMessageBody)));
 
     let responseBody = {
@@ -50,9 +50,9 @@ async function apiRead(body:any, callerEmail:string) {
     const methodName = 'read';
     validate.readBody(body);
 
-    let dappName = validate.cleanName(body.DappName);
+    let id = validate.cleanName(body.Id);
 
-    let dbItem = await callAndLog('Get DynamoDB Item', dynamoDB.getItem(dappName));
+    let dbItem = await callAndLog('Get DynamoDB Item', dynamoDB.getItem(id));
 
     let outputItem;
     try {
@@ -63,7 +63,7 @@ async function apiRead(body:any, callerEmail:string) {
         outputItem = {};
     }
 
-    let itemExists = !!(outputItem as DappApiRepresentation).DappName;
+    let itemExists = !!(outputItem as DappApiRepresentation).Id;
     let responseBody = {
         method: methodName,
         exists: itemExists,
@@ -76,7 +76,7 @@ async function apiUpdate(body:any, callerEmail:string) {
     const methodName = 'update';
     validate.updateBody(body);
 
-    let dappName = validate.cleanName(body.DappName);
+    let id = validate.cleanName(body.Id);
     // These values may or may not be defined
     let abi = body.Abi;
     let addr = body.ContractAddr;
@@ -91,7 +91,7 @@ async function apiUpdate(body:any, callerEmail:string) {
         return responseBody;
     }
 
-    let dbItem = await validate.updateAllowed(dappName, callerEmail);
+    let dbItem = await validate.updateAllowed(id, callerEmail);
 
     let updateAttrs = {
         Abi: abi,
@@ -101,7 +101,7 @@ async function apiUpdate(body:any, callerEmail:string) {
     };
     let sqsMessageBody = {
         Method: methodName,
-        DappName: dappName
+        Id: id
     };
 
     await callAndLog("Set DynamoDB Item State Building And Update Attributes", dynamoDB.setStateBuildingWithUpdate(dbItem, updateAttrs));
@@ -118,13 +118,13 @@ async function apiDelete(body:any, callerEmail:string) {
     const methodName = 'delete';
     validate.deleteBody(body);
 
-    let dappName = validate.cleanName(body.DappName);
+    let id = validate.cleanName(body.Id);
 
-    let dbItem = await validate.deleteAllowed(dappName, callerEmail);
+    let dbItem = await validate.deleteAllowed(id, callerEmail);
 
     let sqsMessageBody = {
         Method: methodName,
-        DappName: dappName
+        Id: id
     };
 
     await callAndLog("Set DynamoDB Item State Deleting", dynamoDB.setStateDeleting(dbItem));

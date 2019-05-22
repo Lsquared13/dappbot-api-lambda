@@ -7,16 +7,16 @@ export function createS3BucketName() {
     return s3BucketPrefix.concat(uuidv4());
 }
 
-export function dnsNameFromDappName(dappName:string) {
-    return dappName.concat(dnsRoot);
+export function dnsNameFromId(id:string) {
+    return id.concat(dnsRoot);
 }
 
-export function pipelineNameFromDappName(dappName:string) {
-    return `${dappName}${dnsRoot}`
+export function pipelineNameFromId(id:string) {
+    return `${id}${dnsRoot}`
   }
 
 export default {
     newS3BucketName : createS3BucketName,
-    dnsNameFromDappName : dnsNameFromDappName,
-    pipelineNameFromDappName : pipelineNameFromDappName
+    dnsNameFromId : dnsNameFromId,
+    pipelineNameFromId : pipelineNameFromId
 }

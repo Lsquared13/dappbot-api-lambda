@@ -14,17 +14,17 @@ This will produce an `dappbot-api-lambda.zip` at the package root directory.  Th
 ## Endpoints
 - **`/create`**
   - Accepts a body with the following keys:
-    - **`DappName`**: Unique name for your dapp, will be in the domain.
+    - **`Id`**: Unique name for your dapp, will be in the domain.
     - **`Abi`**: An ABI method array as an escaped JSON string.
     - **`ContractAddr`**: The deployed address of your chosen contract.
     - **`Web3URL`**: The URL for your HTTPProvider.  Our transaction executors work for Eximchain dapps, Infura would work for Ethereum dapps.  Include `https://`
     - **`GuardianURL`**: The URL of your Guardian instance.  Include `https://`
   - Validates input, queues a create request to be processed asynchronously, and returns a success.
 - **`/read`**
-  - Accepts a body with key `DappName`.
+  - Accepts a body with key `Id`.
   - Returns a DappItem as defined below.
 - **`/update`**
-  - Accepts a body with required key `DappName`.
+  - Accepts a body with required key `Id`.
   - Also accepts the following optional keys in the body:
     - **`Abi`**: An ABI method array as an escaped JSON string.
     - **`ContractAddr`**: The deployed address of your chosen contract.
@@ -32,7 +32,7 @@ This will produce an `dappbot-api-lambda.zip` at the package root directory.  Th
     - **`GuardianURL`**: The URL of your Guardian instance.  Include `https://`
   - Simply returns success if no optional keys were specified. Otherwise, updates the values of the specified optional keys in the dapp, sets its state to `BUILDING_DAPP` and returns success.
 - **`/delete`**
-  - Accepts a body with key `DappName`.
+  - Accepts a body with key `Id`.
   - Validates input, sets state to `DELETING`, queues a request to destroy all associated resources asynchronously, and returns a success.
 - **`/list`**
   - Accepts an empty body with no keys.
@@ -46,7 +46,7 @@ A DappItem is a JSON object used in some responses. It has the following structu
 
 ```json
 {
-  "DappName": "<STRING: The canonical name of the Dapp>",
+  "Id": "<STRING: The canonical name of the Dapp>",
   "OwnerEmail": "<STRING: The email of the owner of the Dapp>",
   "CreationTime": "<STRING: The timestamp at which the Dapp was created>",
   "UpdatedAt": "<STRING: The timestamp at which the Dapp was last updated>",
@@ -95,7 +95,7 @@ Successful API Calls return responses with `"err": null` that look like the foll
   "data": {
     "method": "read",
     "exists": "<BOOLEAN: Whether or not an item was found>",
-    "item": "<DAPP_ITEM: The DappItem matching the specified DappName>"
+    "item": "<DAPP_ITEM: The DappItem matching the specified Id>"
   },
   "err": null
 }

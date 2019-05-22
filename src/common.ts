@@ -32,7 +32,7 @@ export function addAwsPromiseRetries(promiseGenerator:()=>Promise<any>, maxRetri
 }
 
 export interface ValidCreateBody {
-    DappName: string
+    Id: string
     Abi : string
     ContractAddr: string
     Web3URL: string

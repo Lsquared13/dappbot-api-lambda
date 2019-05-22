@@ -6,8 +6,8 @@ import { AttributeListType } from "aws-sdk/clients/cognitoidentityserviceprovide
 
 const dappLimitAttrName = 'custom:num_dapps';
 
-// Names that should be disallowed for DappName values
-const reservedDappNames = new Set([
+// Names that should be disallowed for Id values
+const reservedIds = new Set([
     'abi',
     'abiclerk',
     'abi-clerk',
@@ -56,7 +56,7 @@ const reservedDappNames = new Set([
 // CREATE VALIDATION
 
 function validateBodyCreate(body:Object) {
-    assertParameterValid(body.hasOwnProperty('DappName'), "create: required argument 'DappName' not found");
+    assertParameterValid(body.hasOwnProperty('Id'), "create: required argument 'Id' not found");
     assertParameterValid(body.hasOwnProperty('Abi'), "create: required argument 'Abi' not found");
     assertParameterValid(body.hasOwnProperty('ContractAddr'), "create: required argument 'ContractAddr' not found");
     assertParameterValid(body.hasOwnProperty('Web3URL'), "create: required argument 'Web3URL' not found");
@@ -87,30 +87,30 @@ async function validateLimitsCreate(cognitoUsername:string, ownerEmail:string) {
     }
 }
 
-function validateAllowedDappName(dappName:string, email:string) {
+function validateAllowedId(id:string, email:string) {
     // Admins can use reserved names
     if (isAdmin(email)) {
         return true;
     }
-    assertOperationAllowed(!reservedDappNames.has(dappName), `Specified DappName ${dappName} is not an allowed name`);
+    assertOperationAllowed(!reservedIds.has(id), `Specified Id ${id} is not an allowed name`);
     return true;
 }
 
-async function validateNameNotTaken(dappName:string) {
+async function validateNameNotTaken(id:string) {
     let existingItem = null;
     try {
-        existingItem = await dynamoDB.getItem(dappName);
+        existingItem = await dynamoDB.getItem(id);
     } catch (err) {
         console.log("Error retrieving DB Item for create validation", err);
         throw err;
     }
-    assertOperationAllowed(!existingItem.Item, `DappName ${dappName} is already taken. Please choose another name.`);
+    assertOperationAllowed(!existingItem.Item, `Id ${id} is already taken. Please choose another name.`);
 }
 
-async function validateCreateAllowed(dappName:string, cognitoUsername:string, callerEmail:string) {
-    validateAllowedDappName(dappName, callerEmail);
+async function validateCreateAllowed(id:string, cognitoUsername:string, callerEmail:string) {
+    validateAllowedId(id, callerEmail);
     let limitCheck = validateLimitsCreate(cognitoUsername, callerEmail);
-    let nameTakenCheck = validateNameNotTaken(dappName);
+    let nameTakenCheck = validateNameNotTaken(id);
     await limitCheck;
     await nameTakenCheck;
 }
@@ -118,7 +118,7 @@ async function validateCreateAllowed(dappName:string, cognitoUsername:string, ca
 // READ VALIDATION
 
 function validateBodyRead(body:Object) {
-    assertParameterValid(body.hasOwnProperty('DappName'), "read: required argument 'DappName' not found");
+    assertParameterValid(body.hasOwnProperty('Id'), "read: required argument 'Id' not found");
 }
 
 async function validateReadAllowed(dbItem:any, callerEmail:string) {
@@ -131,11 +131,11 @@ async function validateReadAllowed(dbItem:any, callerEmail:string) {
 // UPDATE VALIDATION
 
 function validateBodyUpdate(body:Object) {
-    assertParameterValid(body.hasOwnProperty('DappName'), "update: required argument 'DappName' not found");
+    assertParameterValid(body.hasOwnProperty('Id'), "update: required argument 'Id' not found");
 }
 
-async function validateUpdateAllowed(dappName:string, callerEmail:string) {
-    let dbItem = await dynamoDB.getItem(dappName);
+async function validateUpdateAllowed(id:string, callerEmail:string) {
+    let dbItem = await dynamoDB.getItem(id);
     assertOperationAllowed(dbItem.Item, "Dapp Not Found");
 
     let dbOwner = dbItem.Item.OwnerEmail.S;
@@ -147,11 +147,11 @@ async function validateUpdateAllowed(dappName:string, callerEmail:string) {
 // DELETE VALIDATION
 
 function validateBodyDelete(body:Object) {
-    assertParameterValid(body.hasOwnProperty('DappName'), "delete: required argument 'DappName' not found");
+    assertParameterValid(body.hasOwnProperty('Id'), "delete: required argument 'Id' not found");
 }
 
-async function validateDeleteAllowed(dappName:string, callerEmail:string) {
-    let dbItem = await dynamoDB.getItem(dappName);
+async function validateDeleteAllowed(id:string, callerEmail:string) {
+    let dbItem = await dynamoDB.getItem(id);
     assertOperationAllowed(dbItem.Item, "Dapp Not Found");
 
     if (isAdmin(callerEmail)) {
@@ -179,7 +179,7 @@ function isAdmin(email:string) {
     return email === adminEmail;
 }
 
-function cleanDappName(name:string) {
+function cleanId(name:string) {
     return name.toLowerCase()
         .replace(/\s/g, '-') // Convert spaces to hyphens
         .replace(/[^A-Za-z0-9-]/g, '') // Remove non-alphanumerics
@@ -195,5 +195,5 @@ export default {
     updateAllowed : validateUpdateAllowed,
     deleteBody : validateBodyDelete,
     deleteAllowed : validateDeleteAllowed,
-    cleanName : cleanDappName
+    cleanName : cleanId
 }

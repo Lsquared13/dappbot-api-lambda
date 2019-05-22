@@ -1,25 +1,25 @@
 import { PutItemInputAttributeMap } from "aws-sdk/clients/dynamodb";
-import { createS3BucketName, dnsNameFromDappName, pipelineNameFromDappName } from './names'; 
+import { createS3BucketName, dnsNameFromId, pipelineNameFromId } from './names'; 
 import { addAwsPromiseRetries, DappApiRepresentation } from '../common'; 
 import { AWS, tableName } from '../env';
 import { assertDappItemValid } from '../errors';
 const ddb = new AWS.DynamoDB({apiVersion: '2012-08-10'});
 
-function serializeDdbKey(dappName:string) {
+function serializeDdbKey(id:string) {
     let keyItem = {
-        'DappName': {S: dappName}
+        'Id': {S: id}
     };
     return keyItem;
 }
 
 function serializeDdbItem(
-    dappName:string, ownerEmail:string, abi:string, contractAddr:string, web3Url:string, 
+    id:string, ownerEmail:string, abi:string, contractAddr:string, web3Url:string, 
     guardianUrl:string, bucketName:string, pipelineName:string, dnsName:string, state:string,
     cloudfrontDistroId:string | null, cloudfrontDns:string | null) {
     let now = new Date().toISOString();
     // Required Params
     let item:PutItemInputAttributeMap = {
-        'DappName' : {S: dappName},
+        'Id' : {S: id},
         'OwnerEmail' : {S: ownerEmail},
         'CreationTime' : {S: now},
         'UpdatedAt' : {S: now},
@@ -49,7 +49,7 @@ function dbItemToApiRepresentation(dbItem:PutItemInputAttributeMap): (DappApiRep
     }
     validateDbItemForOutput(dbItem);
     
-    let dappName = dbItem.DappName.S;
+    let id = dbItem.Id.S;
     let ownerEmail = dbItem.OwnerEmail.S;
     let creationTime = dbItem.CreationTime.S;
     let updatedAt = dbItem.UpdatedAt.S;
@@ -61,7 +61,7 @@ function dbItemToApiRepresentation(dbItem:PutItemInputAttributeMap): (DappApiRep
     let state = dbItem.State.S;
 
     let apiItem = {
-        "DappName": dappName,
+        "Id": id,
         "OwnerEmail": ownerEmail,
         "CreationTime": creationTime,
         "UpdatedAt": updatedAt,
@@ -75,19 +75,19 @@ function dbItemToApiRepresentation(dbItem:PutItemInputAttributeMap): (DappApiRep
     return apiItem;
 }
 
-function promisePutCreatingDappItem(dappName:string, ownerEmail:string, abi:string, contractAddr:string, web3Url:string, guardianUrl:string) {
+function promisePutCreatingDappItem(id:string, ownerEmail:string, abi:string, contractAddr:string, web3Url:string, guardianUrl:string) {
     let maxRetries = 5;
 
     let bucketName = createS3BucketName();
-    let pipelineName = pipelineNameFromDappName(dappName);
-    let dnsName = dnsNameFromDappName(dappName);
+    let pipelineName = pipelineNameFromId(id);
+    let dnsName = dnsNameFromId(id);
     let state = 'CREATING';
     let cloudfrontDistroId = null;
     let cloudfrontDns = null;
 
     let putItemParams = {
         TableName: tableName,
-        Item: serializeDdbItem(dappName, ownerEmail, abi, contractAddr, web3Url, guardianUrl, bucketName, pipelineName, dnsName, state, cloudfrontDistroId, cloudfrontDns)
+        Item: serializeDdbItem(id, ownerEmail, abi, contractAddr, web3Url, guardianUrl, bucketName, pipelineName, dnsName, state, cloudfrontDistroId, cloudfrontDns)
     };
 
     return addAwsPromiseRetries(() => ddb.putItem(putItemParams).promise(), maxRetries);
@@ -138,11 +138,11 @@ async function promiseSetDappStateDeleting(dappItem:PutItemInputAttributeMap) {
     return promisePutRawDappItem(dappItem);
 }
 
-function promiseGetDappItem(dappName:string) {
+function promiseGetDappItem(id:string) {
     let maxRetries = 5;
     let getItemParams = {
         TableName: tableName,
-        Key: serializeDdbKey(dappName)
+        Key: serializeDdbKey(id)
     };
 
     return addAwsPromiseRetries(() => ddb.getItem(getItemParams).promise(), maxRetries);
@@ -169,7 +169,7 @@ function promiseGetItemsByOwner(ownerEmail:string) {
 }
 
 function validateDbItemForOutput(dbItem:PutItemInputAttributeMap) {
-    assertDappItemValid(dbItem.hasOwnProperty('DappName'), "dbItem: required attribute 'DappName' not found");
+    assertDappItemValid(dbItem.hasOwnProperty('Id'), "dbItem: required attribute 'Id' not found");
     assertDappItemValid(dbItem.hasOwnProperty('OwnerEmail'), "dbItem: required attribute 'OwnerEmail' not found");
     assertDappItemValid(dbItem.hasOwnProperty('CreationTime'), "dbItem: required attribute 'CreationTime' not found");
     assertDappItemValid(dbItem.hasOwnProperty('UpdatedAt'), "dbItem: required attribute 'UpdatedAt' not found");
@@ -180,7 +180,7 @@ function validateDbItemForOutput(dbItem:PutItemInputAttributeMap) {
     assertDappItemValid(dbItem.hasOwnProperty('GuardianURL'), "dbItem: required attribute 'GuardianURL' not found");
     assertDappItemValid(dbItem.hasOwnProperty('State'), "dbItem: required attribute 'State' not found");
 
-    assertDappItemValid(dbItem.DappName.hasOwnProperty('S'), "dbItem: required attribute 'DappName' has wrong shape");
+    assertDappItemValid(dbItem.Id.hasOwnProperty('S'), "dbItem: required attribute 'Id' has wrong shape");
     assertDappItemValid(dbItem.OwnerEmail.hasOwnProperty('S'), "dbItem: required attribute 'OwnerEmail' has wrong shape");
     assertDappItemValid(dbItem.CreationTime.hasOwnProperty('S'), "dbItem: required attribute 'CreationTime' has wrong shape");
     assertDappItemValid(dbItem.UpdatedAt.hasOwnProperty('S'), "dbItem: required attribute 'UpdatedAt' has wrong shape");
