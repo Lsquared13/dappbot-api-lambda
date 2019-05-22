@@ -6,6 +6,7 @@ import { AttributeListType } from "aws-sdk/clients/cognitoidentityserviceprovide
 
 const dappLimitAttrName = 'custom:num_dapps';
 
+// TODO: Change to reserved URL names
 // Names that should be disallowed for Id values
 const reservedIds = new Set([
     'abi',
