@@ -1,4 +1,5 @@
 import { PutItemInputAttributeMap } from "aws-sdk/clients/dynamodb";
+import { DappTiers } from './common';
 import services from './services';
 const { cognito, dynamoDB } = services;
 import { assertParameterValid, assertOperationAllowed, assertInternal, throwInternalValidationError } from './errors';
@@ -53,6 +54,8 @@ const reservedDappNames = new Set([
     'weylgovernance'
 ]);
 
+const validDappTiers = new Set(Object.keys(DappTiers));
+
 // CREATE VALIDATION
 
 function validateBodyCreate(body:Object) {
@@ -96,6 +99,10 @@ function validateAllowedDappName(dappName:string, email:string) {
     return true;
 }
 
+function validateTier(dappTier:string) {
+    assertOperationAllowed(validDappTiers.has(dappTier), `Invalid Tier '${dappTier}' specified`);
+}
+
 async function validateNameNotTaken(dappName:string) {
     let existingItem = null;
     try {
@@ -107,8 +114,10 @@ async function validateNameNotTaken(dappName:string) {
     assertOperationAllowed(!existingItem.Item, `DappName ${dappName} is already taken. Please choose another name.`);
 }
 
-async function validateCreateAllowed(dappName:string, cognitoUsername:string, callerEmail:string) {
+async function validateCreateAllowed(dappName:string, cognitoUsername:string, callerEmail:string, dappTier:string) {
     validateAllowedDappName(dappName, callerEmail);
+    validateTier(dappTier);
+    // TODO: Validate limits by tier
     let limitCheck = validateLimitsCreate(cognitoUsername, callerEmail);
     let nameTakenCheck = validateNameNotTaken(dappName);
     await limitCheck;

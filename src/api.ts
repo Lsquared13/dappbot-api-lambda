@@ -1,6 +1,6 @@
 import services from './services';
 const { sqs, dynamoDB } = services; 
-import { DappApiRepresentation, DappTiers } from './common';
+import { DappApiRepresentation } from './common';
 import validate from './validate';
 import { PutItemInputAttributeMap } from 'aws-sdk/clients/dynamodb';
 
@@ -29,9 +29,8 @@ async function apiCreate(body:any, callerEmail:string, cognitoUsername:string) {
     let web3URL = body.Web3URL;
     let guardianURL = body.GuardianURL;
     let dappTier = body.Tier;
-
-    // TODO: Validate by tier
-    await validate.createAllowed(dappName, cognitoUsername, callerEmail);
+    
+    await validate.createAllowed(dappName, cognitoUsername, callerEmail, dappTier);
 
     let sqsMessageBody = {
         Method: methodName,
