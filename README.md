@@ -19,6 +19,7 @@ This will produce an `dappbot-api-lambda.zip` at the package root directory.  Th
     - **`ContractAddr`**: The deployed address of your chosen contract.
     - **`Web3URL`**: The URL for your HTTPProvider.  Our transaction executors work for Eximchain dapps, Infura would work for Ethereum dapps.  Include `https://`
     - **`GuardianURL`**: The URL of your Guardian instance.  Include `https://`
+    - **`Tier`**: The tier of dapp to create. Must be one of `STANDARD`, `PROFESSIONAL`, or `ENTERPRISE`
   - Validates input, queues a create request to be processed asynchronously, and returns a success.
 - **`/read`**
   - Accepts a body with key `DappName`.
@@ -55,7 +56,8 @@ A DappItem is a JSON object used in some responses. It has the following structu
   "ContractAddr": "<STRING: The address which hosts the contract for the Dapp>",
   "Web3URL": "<STRING: The URL at which to access an Eximchain or Ethereum node>",
   "GuardianURL": "<STRING: The URL of the Guardian instance to use for this Dapp>",
-  "State": "<STRING: One of the states listed below describing the state of the Dapp>"
+  "State": "<STRING: One of the states listed below describing the state of the Dapp>",
+  "Tier": "<STRING: One of the tiers listed below for the Dapp>"
 }
 ```
 
@@ -69,6 +71,14 @@ The state describes the current state of the resources associated with a Dapp. I
 - `DELETING` - The resources associated with the Dapp are being destroyed.
 - `FAILED` - A `create` or `update` command failed to move the Dapp to the `AVAILABLE` state. The Dapp may be deleted from this state.
 - `DEPOSED` - A `delete` command failed to finish removing the Dapp in the `DELETING` state. The Dapp cannot be deleted from this state. Intervention from support or a cleanup component is required.  This implies either a bug in Delete logic, or an AWS service outage.
+
+### Tier
+
+The tier describes the features that the Dapp has. It can take the following values:
+
+- `STANDARD` - TODO
+- `PROFESSIONAL` - TODO
+- `ENTERPRISE` - TODO
 
 ### Success Responses
 

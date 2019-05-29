@@ -32,21 +32,29 @@ export function addAwsPromiseRetries(promiseGenerator:()=>Promise<any>, maxRetri
 }
 
 export interface ValidCreateBody {
-    DappName: string
+    DappName : string
     Abi : string
-    ContractAddr: string
-    Web3URL: string
-    GuardianURL: string
+    ContractAddr : string
+    Web3URL : string
+    GuardianURL : string
+    Tier : string
 }
 
 export interface DappApiRepresentation extends ValidCreateBody {
-    OwnerEmail: string
-    CreationTime: string
-    DnsName: string
+    OwnerEmail : string
+    CreationTime : string
+    DnsName : string
     State : string
 }
 
 export interface ResponseOptions {
     isErr? : boolean
     isCreate? : boolean
+}
+
+export enum DappTiers {
+    POC = 'POC', // TODO: Remove this legacy tier
+    STANDARD = 'STANDARD',
+    PROFESSIONAL = 'PROFESSIONAL',
+    ENTERPRISE = 'ENTERPRISE'
 }

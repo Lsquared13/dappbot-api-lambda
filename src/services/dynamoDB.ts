@@ -15,7 +15,7 @@ function serializeDdbKey(dappName:string) {
 function serializeDdbItem(
     dappName:string, ownerEmail:string, abi:string, contractAddr:string, web3Url:string, 
     guardianUrl:string, bucketName:string, pipelineName:string, dnsName:string, state:string,
-    cloudfrontDistroId:string | null, cloudfrontDns:string | null) {
+    dappTier:string, cloudfrontDistroId:string | null, cloudfrontDns:string | null) {
     let now = new Date().toISOString();
     // Required Params
     let item:PutItemInputAttributeMap = {
@@ -30,7 +30,8 @@ function serializeDdbItem(
         'S3BucketName' : {S: bucketName},
         'PipelineName' : {S: pipelineName},
         'DnsName' : {S: dnsName},
-        'State' : {S: state}
+        'State' : {S: state},
+        'Tier' : {S: dappTier}
     };
     
     // Optional Params
@@ -75,7 +76,7 @@ function dbItemToApiRepresentation(dbItem:PutItemInputAttributeMap): (DappApiRep
     return apiItem;
 }
 
-function promisePutCreatingDappItem(dappName:string, ownerEmail:string, abi:string, contractAddr:string, web3Url:string, guardianUrl:string) {
+function promisePutCreatingDappItem(dappName:string, ownerEmail:string, abi:string, contractAddr:string, web3Url:string, guardianUrl:string, dappTier:string) {
     let maxRetries = 5;
 
     let bucketName = createS3BucketName();
@@ -87,7 +88,7 @@ function promisePutCreatingDappItem(dappName:string, ownerEmail:string, abi:stri
 
     let putItemParams = {
         TableName: tableName,
-        Item: serializeDdbItem(dappName, ownerEmail, abi, contractAddr, web3Url, guardianUrl, bucketName, pipelineName, dnsName, state, cloudfrontDistroId, cloudfrontDns)
+        Item: serializeDdbItem(dappName, ownerEmail, abi, contractAddr, web3Url, guardianUrl, bucketName, pipelineName, dnsName, state, dappTier, cloudfrontDistroId, cloudfrontDns)
     };
 
     return addAwsPromiseRetries(() => ddb.putItem(putItemParams).promise(), maxRetries);
@@ -179,6 +180,7 @@ function validateDbItemForOutput(dbItem:PutItemInputAttributeMap) {
     assertDappItemValid(dbItem.hasOwnProperty('Web3URL'), "dbItem: required attribute 'Web3URL' not found");
     assertDappItemValid(dbItem.hasOwnProperty('GuardianURL'), "dbItem: required attribute 'GuardianURL' not found");
     assertDappItemValid(dbItem.hasOwnProperty('State'), "dbItem: required attribute 'State' not found");
+    assertDappItemValid(dbItem.hasOwnProperty('Tier'), "dbItem: required attribute 'Tier' not found");
 
     assertDappItemValid(dbItem.DappName.hasOwnProperty('S'), "dbItem: required attribute 'DappName' has wrong shape");
     assertDappItemValid(dbItem.OwnerEmail.hasOwnProperty('S'), "dbItem: required attribute 'OwnerEmail' has wrong shape");
@@ -190,6 +192,7 @@ function validateDbItemForOutput(dbItem:PutItemInputAttributeMap) {
     assertDappItemValid(dbItem.Web3URL.hasOwnProperty('S'), "dbItem: required attribute 'Web3URL' has wrong shape");
     assertDappItemValid(dbItem.GuardianURL.hasOwnProperty('S'), "dbItem: required attribute 'GuardianURL' has wrong shape");
     assertDappItemValid(dbItem.State.hasOwnProperty('S'), "dbItem: required attribute 'State' has wrong shape");
+    assertDappItemValid(dbItem.State.hasOwnProperty('S'), "dbItem: required attribute 'Tier' has wrong shape");
 }
 
 export default {
