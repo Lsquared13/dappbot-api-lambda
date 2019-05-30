@@ -150,10 +150,43 @@ async function apiList(callerEmail:string) {
     return responseBody;
 }
 
+async function apiView(body:any) {
+    const methodName = 'view';
+    validate.readBody(body);
+    let dappName = validate.cleanName(body.DappName);
+
+    let dbItem = await callAndLog('Get DynamoDB Item', dynamoDB.getItem(dappName));
+
+    let outputItem = dynamoDB.toApiRepresentation(dbItem.Item);
+
+    const transformForDappHub = (
+        {Abi, DappName, GuardianURL, Web3URL, ContractAddr}:DappApiRepresentation
+    )=>(
+        {Abi, DappName, GuardianURL, Web3URL, ContractAddr}
+    );
+
+    let finalItem;
+    if (outputItem === {}){
+        finalItem = {}
+    } else {
+        // @ts-ignore
+        finalItem = transformForDappHub(outputItem)
+    }
+    let itemExists = !!(outputItem as DappApiRepresentation).DappName;
+
+    let responseBody = {
+        method: methodName,
+        exists: itemExists,
+        item: finalItem
+    };
+    return responseBody;
+}
+
 export default {
     create : apiCreate,
     read : apiRead,
     update : apiUpdate,
     delete : apiDelete,
-    list : apiList
+    list : apiList,
+    view : apiView
 }

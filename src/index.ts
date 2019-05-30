@@ -3,6 +3,37 @@ import api from './api';
 import { ResponseOptions } from './common';
 import { APIGatewayEvent } from './gateway-event-type';
 
+interface Test {
+    [key:string] : {
+        [key:string] : {
+            S : string
+        }
+    }
+}
+
+exports.viewHandler = async(event:APIGatewayEvent) => {
+    console.log("request: " + JSON.stringify(event));
+    
+    // Auto-return success for CORS pre-flight OPTIONS requests
+    if (event.httpMethod.toLowerCase() == 'options'){
+        return successResponse({});
+    }
+
+    // Unpack Data from the event
+    let method = event.pathParameters.proxy;
+    let body;
+    if (event.body) {
+        body = JSON.parse(event.body);
+    }
+    if (method === 'view'){
+        try {
+            return successResponse(await api.view(body), {});
+        } catch (err) {
+            return errorResponse(err, {});
+        }
+    }
+}
+
 exports.handler = async (event:APIGatewayEvent) => {
     console.log("request: " + JSON.stringify(event));
     
