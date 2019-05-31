@@ -151,10 +151,37 @@ async function apiList(callerEmail:string) {
     return responseBody;
 }
 
+function transformForDappHub(
+    {Abi, DappName, GuardianURL, Web3URL, ContractAddr}:DappApiRepresentation
+){
+    return {Abi, DappName, GuardianURL, Web3URL, ContractAddr};
+};
+
+async function apiView(body:any) {
+    const methodName = 'view';
+    validate.readBody(body);
+    let dappName = validate.cleanName(body.DappName);
+
+    let dbItem = await callAndLog('Get DynamoDB Item', dynamoDB.getItem(dappName));
+
+    let apiItem = dynamoDB.toApiRepresentation(dbItem.Item);
+
+    let itemExists = 'DappName' in apiItem;
+    let dappHubItem = 'DappName' in apiItem ? transformForDappHub(apiItem) : {};
+
+    let responseBody = {
+        method: methodName,
+        exists: itemExists,
+        item: dappHubItem
+    };
+    return responseBody;
+}
+
 export default {
     create : apiCreate,
     read : apiRead,
     update : apiUpdate,
     delete : apiDelete,
-    list : apiList
+    list : apiList,
+    view : apiView
 }

@@ -3,6 +3,25 @@ import api from './api';
 import { ResponseOptions } from './common';
 import { APIGatewayEvent } from './gateway-event-type';
 
+exports.viewHandler = async(event:APIGatewayEvent) => {
+    console.log("request: " + JSON.stringify(event));
+    
+    // Auto-return success for CORS pre-flight OPTIONS requests
+    if (event.httpMethod.toLowerCase() == 'options'){
+        return successResponse({});
+    }
+
+    let body;
+    if (event.body) {
+        body = JSON.parse(event.body);
+    }
+    try {
+        return successResponse(await api.view(body));
+    } catch (err) {
+        return errorResponse(err);
+    }
+}
+
 exports.handler = async (event:APIGatewayEvent) => {
     console.log("request: " + JSON.stringify(event));
     
@@ -62,7 +81,8 @@ function response(body:any, opts:ResponseOptions) {
 
     let responseHeaders = {
         'Content-Type': 'application/json', 
-        'Access-Control-Allow-Origin': '*' 
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Authorization,Content-Type'
     };
     
 
