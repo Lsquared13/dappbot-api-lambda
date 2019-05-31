@@ -16,9 +16,9 @@ exports.viewHandler = async(event:APIGatewayEvent) => {
         body = JSON.parse(event.body);
     }
     try {
-        return successResponse(await api.view(body), {});
+        return successResponse(await api.view(body));
     } catch (err) {
-        return errorResponse(err, {});
+        return errorResponse(err);
     }
 }
 
