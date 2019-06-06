@@ -5,7 +5,12 @@ const { cognito, dynamoDB } = services;
 import { assertParameterValid, assertOperationAllowed, assertInternal, throwInternalValidationError } from './errors';
 import { AttributeListType } from "aws-sdk/clients/cognitoidentityserviceprovider";
 
-const dappLimitAttrName = 'custom:num_dapps';
+const dappTierToLimitAttr = {
+    [DappTiers.POC]: 'custom:num_dapps',
+    [DappTiers.STANDARD]: 'custom:standard_limit',
+    [DappTiers.PROFESSIONAL]: 'custom:professional_limit',
+    [DappTiers.ENTERPRISE]: 'custom:enterprise_limit'
+};
 
 // Names that should be disallowed for DappName values
 const reservedDappNames = new Set([
@@ -66,7 +71,7 @@ function validateBodyCreate(body:Object) {
     assertParameterValid(body.hasOwnProperty('GuardianURL'), "create: required argument 'GuardianURL' not found");
 }
 
-async function validateLimitsCreate(cognitoUsername:string, ownerEmail:string) {
+async function validateLimitsCreate(cognitoUsername:string, ownerEmail:string, tier:DappTiers) {
     console.log("Validating Limits for User", cognitoUsername);
 
     try {
@@ -74,14 +79,19 @@ async function validateLimitsCreate(cognitoUsername:string, ownerEmail:string) {
         console.log("Found Cognito User", user);
 
         let attrList:AttributeListType = user.UserAttributes;
-        let dappLimitAttr = attrList.filter(attr => attr.Name === dappLimitAttrName);
-        assertInternal(dappLimitAttr.length === 1);
-        let dappLimit = dappLimitAttr[0].Value as string;
+        let dappLimitAttr = attrList.filter(attr => attr.Name === dappTierToLimitAttr[tier]);
+        let dappLimit;
+        if (dappLimitAttr.length === 0) {
+            dappLimit = 0;
+        } else {
+            assertInternal(dappLimitAttr.length === 1);
+            dappLimit = parseInt(dappLimitAttr[0].Value as string);
+        }
 
-        let dappItems = await dynamoDB.getByOwner(ownerEmail);
+        let dappItems = await dynamoDB.getByOwnerAndTier(ownerEmail, tier);
         console.log("Queried DynamoDB Table", dappItems);
 
-        let numDappsOwned = dappItems.Items.length;
+        let numDappsOwned = dappItems.length;
         assertOperationAllowed(numDappsOwned + 1 <= dappLimit, "User " + ownerEmail + " already at dapp limit: " + dappLimit);
         return true;
     } catch (err) {
@@ -114,11 +124,10 @@ async function validateNameNotTaken(dappName:string) {
     assertOperationAllowed(!existingItem.Item, `DappName ${dappName} is already taken. Please choose another name.`);
 }
 
-async function validateCreateAllowed(dappName:string, cognitoUsername:string, callerEmail:string, dappTier:string) {
+async function validateCreateAllowed(dappName:string, cognitoUsername:string, callerEmail:string, dappTier:DappTiers) {
     validateAllowedDappName(dappName, callerEmail);
     validateTier(dappTier);
-    // TODO: Validate limits by tier
-    let limitCheck = validateLimitsCreate(cognitoUsername, callerEmail);
+    let limitCheck = validateLimitsCreate(cognitoUsername, callerEmail, dappTier);
     let nameTakenCheck = validateNameNotTaken(dappName);
     await limitCheck;
     await nameTakenCheck;

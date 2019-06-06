@@ -1,6 +1,6 @@
-import { PutItemInputAttributeMap } from "aws-sdk/clients/dynamodb";
+import { PutItemInputAttributeMap, AttributeMap } from "aws-sdk/clients/dynamodb";
 import { createS3BucketName, dnsNameFromDappName, pipelineNameFromDappName } from './names'; 
-import { addAwsPromiseRetries, DappApiRepresentation } from '../common'; 
+import { addAwsPromiseRetries, DappApiRepresentation, DappTiers } from '../common'; 
 import { AWS, tableName } from '../env';
 import { assertDappItemValid } from '../errors';
 const ddb = new AWS.DynamoDB({apiVersion: '2012-08-10'});
@@ -169,6 +169,16 @@ function promiseGetItemsByOwner(ownerEmail:string) {
     return addAwsPromiseRetries(() => ddb.query(getItemParams).promise(), maxRetries);
 }
 
+async function getItemsByOwnerAndTier(ownerEmail:string, tier:DappTiers) {
+    let getByOwnerResult = await promiseGetItemsByOwner(ownerEmail);
+    let allDappItems = getByOwnerResult.Items;
+    console.log(`Number of dapps owned by ${ownerEmail}: `, allDappItems.length);
+
+    let dappItemsForTier = allDappItems.filter((item:AttributeMap) => item.Tier.S === tier);
+    console.log(`Number of dapps owned by ${ownerEmail} for tier ${tier}: `, dappItemsForTier.length);
+    return dappItemsForTier;
+}
+
 function validateDbItemForOutput(dbItem:PutItemInputAttributeMap) {
     assertDappItemValid(dbItem.hasOwnProperty('DappName'), "dbItem: required attribute 'DappName' not found");
     assertDappItemValid(dbItem.hasOwnProperty('OwnerEmail'), "dbItem: required attribute 'OwnerEmail' not found");
@@ -200,6 +210,7 @@ export default {
     putRawItem : promisePutRawDappItem,
     getItem : promiseGetDappItem,
     getByOwner : promiseGetItemsByOwner,
+    getByOwnerAndTier : getItemsByOwnerAndTier,
     setStateBuildingWithUpdate : promiseSetDappStateBuildingWithUpdate,
     setStateDeleting : promiseSetDappStateDeleting,
     toApiRepresentation : dbItemToApiRepresentation
