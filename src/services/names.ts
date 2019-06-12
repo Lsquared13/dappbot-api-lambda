@@ -13,10 +13,16 @@ export function dnsNameFromDappName(dappName:string) {
 
 export function pipelineNameFromDappName(dappName:string) {
     return `${dappName}${dnsRoot}`
-  }
+}
+
+export function srcPipelineNameFromDappName(dappName:string) {
+    let prefix = 'src-';
+    return prefix.concat(pipelineNameFromDappName(dappName));
+}
 
 export default {
     newS3BucketName : createS3BucketName,
     dnsNameFromDappName : dnsNameFromDappName,
-    pipelineNameFromDappName : pipelineNameFromDappName
+    pipelineNameFromDappName : pipelineNameFromDappName,
+    srcPipelineNameFromDappName : srcPipelineNameFromDappName
 }

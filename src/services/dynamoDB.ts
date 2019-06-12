@@ -1,5 +1,5 @@
 import { PutItemInputAttributeMap, AttributeMap } from "aws-sdk/clients/dynamodb";
-import { createS3BucketName, dnsNameFromDappName, pipelineNameFromDappName } from './names'; 
+import { createS3BucketName, dnsNameFromDappName, pipelineNameFromDappName, srcPipelineNameFromDappName } from './names'; 
 import { addAwsPromiseRetries, DappApiRepresentation, DappTiers } from '../common'; 
 import { AWS, tableName } from '../env';
 import { assertDappItemValid } from '../errors';
@@ -14,7 +14,7 @@ function serializeDdbKey(dappName:string) {
 
 function serializeDdbItem(
     dappName:string, ownerEmail:string, abi:string, contractAddr:string, web3Url:string, 
-    guardianUrl:string, bucketName:string, pipelineName:string, dnsName:string, state:string,
+    guardianUrl:string, bucketName:string, pipelineName:string, srcPipelineName:string, dnsName:string, state:string,
     dappTier:string, cloudfrontDistroId:string | null, cloudfrontDns:string | null, targetRepoName:string | null, targetRepoOwner:string | null) {
     let now = new Date().toISOString();
     // Required Params
@@ -29,6 +29,7 @@ function serializeDdbItem(
         'GuardianURL' : {S: guardianUrl},
         'S3BucketName' : {S: bucketName},
         'PipelineName' : {S: pipelineName},
+        'SrcPipelineName' : {S: srcPipelineName},
         'DnsName' : {S: dnsName},
         'State' : {S: state},
         'Tier' : {S: dappTier}
@@ -89,6 +90,7 @@ function promisePutCreatingDappItem(dappName:string, ownerEmail:string, abi:stri
 
     let bucketName = createS3BucketName();
     let pipelineName = pipelineNameFromDappName(dappName);
+    let srcPipelineName = srcPipelineNameFromDappName(dappName);
     let dnsName = dnsNameFromDappName(dappName);
     let state = 'CREATING';
     let cloudfrontDistroId = null;
@@ -96,7 +98,7 @@ function promisePutCreatingDappItem(dappName:string, ownerEmail:string, abi:stri
 
     let putItemParams = {
         TableName: tableName,
-        Item: serializeDdbItem(dappName, ownerEmail, abi, contractAddr, web3Url, guardianUrl, bucketName, pipelineName, dnsName, state, dappTier, cloudfrontDistroId, cloudfrontDns, targetRepoName, targetRepoOwner)
+        Item: serializeDdbItem(dappName, ownerEmail, abi, contractAddr, web3Url, guardianUrl, bucketName, pipelineName, srcPipelineName, dnsName, state, dappTier, cloudfrontDistroId, cloudfrontDns, targetRepoName, targetRepoOwner)
     };
 
     return addAwsPromiseRetries(() => ddb.putItem(putItemParams).promise(), maxRetries);
