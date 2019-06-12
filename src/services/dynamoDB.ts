@@ -66,6 +66,7 @@ function dbItemToApiRepresentation(dbItem:PutItemInputAttributeMap): (DappApiRep
     let web3Url = dbItem.Web3URL.S;
     let guardianUrl = dbItem.GuardianURL.S;
     let state = dbItem.State.S;
+    let tier = dbItem.Tier.S;
 
     let apiItem = {
         "DappName": dappName,
@@ -77,7 +78,8 @@ function dbItemToApiRepresentation(dbItem:PutItemInputAttributeMap): (DappApiRep
         "ContractAddr": contractAddr,
         "Web3URL": web3Url,
         "GuardianURL": guardianUrl,
-        "State": state
+        "State": state,
+        "Tier": tier
     };
     return apiItem;
 }
