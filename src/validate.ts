@@ -1,5 +1,4 @@
-import { PutItemInputAttributeMap } from "aws-sdk/clients/dynamodb";
-import { DappTiers } from './common';
+import { DappTiers, ValidCreateBody } from './common';
 import services from './services';
 const { cognito, dynamoDB } = services;
 import { assertParameterValid, assertOperationAllowed, assertInternal, throwInternalValidationError } from './errors';
@@ -69,6 +68,13 @@ function validateBodyCreate(body:Object) {
     assertParameterValid(body.hasOwnProperty('ContractAddr'), "create: required argument 'ContractAddr' not found");
     assertParameterValid(body.hasOwnProperty('Web3URL'), "create: required argument 'Web3URL' not found");
     assertParameterValid(body.hasOwnProperty('GuardianURL'), "create: required argument 'GuardianURL' not found");
+    assertParameterValid(body.hasOwnProperty('Tier'), "create: required argument 'Tier' not found");
+
+    let createBody = body as ValidCreateBody;
+    if (createBody.Tier === DappTiers.ENTERPRISE) {
+        assertParameterValid(body.hasOwnProperty('TargetRepoName'), "create: enterprise version required argument 'TargetRepoName' not found");
+        assertParameterValid(body.hasOwnProperty('TargetRepoOwner'), "create: enterprise version required argument 'TargetRepoName' not found");
+    }
 }
 
 async function validateLimitsCreate(cognitoUsername:string, ownerEmail:string, tier:DappTiers) {

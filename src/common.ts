@@ -38,6 +38,8 @@ export interface ValidCreateBody {
     Web3URL : string
     GuardianURL : string
     Tier : string
+    TargetRepoName? : string
+    TargetRepoOwner? : string
 }
 
 export interface DappApiRepresentation extends ValidCreateBody {

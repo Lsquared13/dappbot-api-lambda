@@ -15,7 +15,7 @@ function serializeDdbKey(dappName:string) {
 function serializeDdbItem(
     dappName:string, ownerEmail:string, abi:string, contractAddr:string, web3Url:string, 
     guardianUrl:string, bucketName:string, pipelineName:string, dnsName:string, state:string,
-    dappTier:string, cloudfrontDistroId:string | null, cloudfrontDns:string | null) {
+    dappTier:string, cloudfrontDistroId:string | null, cloudfrontDns:string | null, targetRepoName:string | null, targetRepoOwner:string | null) {
     let now = new Date().toISOString();
     // Required Params
     let item:PutItemInputAttributeMap = {
@@ -40,6 +40,12 @@ function serializeDdbItem(
     }
     if (cloudfrontDns) {
         item.CloudfrontDnsName = { S: cloudfrontDns };
+    }
+    if (targetRepoName) {
+        item.TargetRepoName = { S: targetRepoName };
+    }
+    if (targetRepoOwner) {
+        item.TargetRepoOwner = { S: targetRepoOwner };
     }
     return item;
 }
@@ -76,7 +82,7 @@ function dbItemToApiRepresentation(dbItem:PutItemInputAttributeMap): (DappApiRep
     return apiItem;
 }
 
-function promisePutCreatingDappItem(dappName:string, ownerEmail:string, abi:string, contractAddr:string, web3Url:string, guardianUrl:string, dappTier:string) {
+function promisePutCreatingDappItem(dappName:string, ownerEmail:string, abi:string, contractAddr:string, web3Url:string, guardianUrl:string, dappTier:string, targetRepoName:string | null, targetRepoOwner:string | null) {
     let maxRetries = 5;
 
     let bucketName = createS3BucketName();
@@ -88,7 +94,7 @@ function promisePutCreatingDappItem(dappName:string, ownerEmail:string, abi:stri
 
     let putItemParams = {
         TableName: tableName,
-        Item: serializeDdbItem(dappName, ownerEmail, abi, contractAddr, web3Url, guardianUrl, bucketName, pipelineName, dnsName, state, dappTier, cloudfrontDistroId, cloudfrontDns)
+        Item: serializeDdbItem(dappName, ownerEmail, abi, contractAddr, web3Url, guardianUrl, bucketName, pipelineName, dnsName, state, dappTier, cloudfrontDistroId, cloudfrontDns, targetRepoName, targetRepoOwner)
     };
 
     return addAwsPromiseRetries(() => ddb.putItem(putItemParams).promise(), maxRetries);
