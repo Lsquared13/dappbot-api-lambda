@@ -20,6 +20,8 @@ This will produce an `dappbot-api-lambda.zip` at the package root directory.  Th
     - **`Web3URL`**: The URL for your HTTPProvider.  Our transaction executors work for Eximchain dapps, Infura would work for Ethereum dapps.  Include `https://`
     - **`GuardianURL`**: The URL of your Guardian instance.  Include `https://`
     - **`Tier`**: The tier of dapp to create. Must be one of `STANDARD`, `PROFESSIONAL`, or `ENTERPRISE`
+    - **`TargetRepoName`**: The name of the GitHub repository to commit the source to. Required for `ENTERPRISE` dapps.
+    - **`TargetRepoOwner`**: The owner of the Github repository named in the `TargetRepoName` argument. Required for `ENTERPRISE` dapps.
   - Validates input, queues a create request to be processed asynchronously, and returns a success.
 - **`/read`**
   - Accepts a body with key `DappName`.
