@@ -1,6 +1,6 @@
 import services from './services';
 const { sqs, dynamoDB } = services; 
-import { DappApiRepresentation } from './common';
+import { DappApiRepresentation, DappTiers } from './common';
 import validate from './validate';
 import { PutItemInputAttributeMap } from 'aws-sdk/clients/dynamodb';
 
@@ -29,6 +29,12 @@ async function apiCreate(body:any, callerEmail:string, cognitoUsername:string) {
     let web3URL = body.Web3URL;
     let guardianURL = body.GuardianURL;
     let dappTier = body.Tier;
+    let targetRepoName = null;
+    let targetRepoOwner = null;
+    if (dappTier === DappTiers.ENTERPRISE) {
+        targetRepoName = body.TargetRepoName;
+        targetRepoOwner = body.TargetRepoOwner;
+    }
     
     await validate.createAllowed(dappName, cognitoUsername, callerEmail, dappTier);
 
@@ -37,7 +43,7 @@ async function apiCreate(body:any, callerEmail:string, cognitoUsername:string) {
         DappName: dappName
     };
 
-    await callAndLog('Put DynamoDB Item', dynamoDB.putItem(dappName, callerEmail, abi, addr, web3URL, guardianURL, dappTier));
+    await callAndLog('Put DynamoDB Item', dynamoDB.putItem(dappName, callerEmail, abi, addr, web3URL, guardianURL, dappTier, targetRepoName, targetRepoOwner));
     await callAndLog('Send SQS Message', sqs.sendMessage(methodName, JSON.stringify(sqsMessageBody)));
 
     let responseBody = {
