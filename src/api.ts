@@ -1,6 +1,6 @@
 import services from './services';
 const { sqs, dynamoDB } = services; 
-import { DappApiRepresentation, DappTiers } from './common';
+import { DappApiRepresentation, DappTiers, ApiMethods } from './common';
 import validate from './validate';
 import { PutItemInputAttributeMap } from 'aws-sdk/clients/dynamodb';
 
@@ -19,11 +19,11 @@ async function callAndLog(stage:string, promise:Promise<any>) {
     }
 }
 
-async function apiCreate(body:any, callerEmail:string, cognitoUsername:string) {
-    const methodName = 'create';
+async function apiCreate(rawDappName:string, body:any, callerEmail:string, cognitoUsername:string) {
+    const methodName = ApiMethods.create;
     validate.createBody(body);
 
-    let dappName = validate.cleanName(body.DappName);
+    let dappName = validate.cleanName(rawDappName);
     let abi = body.Abi;
     let addr = body.ContractAddr;
     let web3URL = body.Web3URL;
@@ -53,11 +53,10 @@ async function apiCreate(body:any, callerEmail:string, cognitoUsername:string) {
     return responseBody;
 }
 
-async function apiRead(body:any, callerEmail:string) {
-    const methodName = 'read';
-    validate.readBody(body);
+async function apiRead(rawDappName:string, callerEmail:string) {
+    const methodName = ApiMethods.read;
 
-    let dappName = validate.cleanName(body.DappName);
+    let dappName = validate.cleanName(rawDappName);
 
     let dbItem = await callAndLog('Get DynamoDB Item', dynamoDB.getItem(dappName));
 
@@ -79,11 +78,11 @@ async function apiRead(body:any, callerEmail:string) {
     return responseBody;
 }
 
-async function apiUpdate(body:any, callerEmail:string) {
-    const methodName = 'update';
+async function apiUpdate(rawDappName:string, body:any, callerEmail:string) {
+    const methodName = ApiMethods.update;
     validate.updateBody(body);
 
-    let dappName = validate.cleanName(body.DappName);
+    let dappName = validate.cleanName(rawDappName);
     // These values may or may not be defined
     let abi = body.Abi;
     let addr = body.ContractAddr;
@@ -121,11 +120,11 @@ async function apiUpdate(body:any, callerEmail:string) {
     return responseBody;
 }
 
-async function apiDelete(body:any, callerEmail:string) {
-    const methodName = 'delete';
+async function apiDelete(rawDappName:string, body:any, callerEmail:string) {
+    const methodName = ApiMethods.delete;
     validate.deleteBody(body);
 
-    let dappName = validate.cleanName(body.DappName);
+    let dappName = validate.cleanName(rawDappName);
 
     let dbItem = await validate.deleteAllowed(dappName, callerEmail);
 
@@ -163,10 +162,9 @@ function transformForDappHub(
     return {Abi, DappName, GuardianURL, Web3URL, ContractAddr};
 };
 
-async function apiView(body:any) {
-    const methodName = 'view';
-    validate.readBody(body);
-    let dappName = validate.cleanName(body.DappName);
+async function apiView(rawDappName:string) {
+    const methodName = ApiMethods.view;
+    let dappName = validate.cleanName(rawDappName);
 
     let dbItem = await callAndLog('Get DynamoDB Item', dynamoDB.getItem(dappName));
 

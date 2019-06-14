@@ -63,7 +63,6 @@ const validDappTiers = new Set(Object.keys(DappTiers));
 // CREATE VALIDATION
 
 function validateBodyCreate(body:Object) {
-    assertParameterValid(body.hasOwnProperty('DappName'), "create: required argument 'DappName' not found");
     assertParameterValid(body.hasOwnProperty('Abi'), "create: required argument 'Abi' not found");
     assertParameterValid(body.hasOwnProperty('ContractAddr'), "create: required argument 'ContractAddr' not found");
     assertParameterValid(body.hasOwnProperty('Web3URL'), "create: required argument 'Web3URL' not found");
@@ -141,10 +140,6 @@ async function validateCreateAllowed(dappName:string, cognitoUsername:string, ca
 
 // READ VALIDATION
 
-function validateBodyRead(body:Object) {
-    assertParameterValid(body.hasOwnProperty('DappName'), "read: required argument 'DappName' not found");
-}
-
 async function validateReadAllowed(dbItem:any, callerEmail:string) {
     if (isAdmin(callerEmail)) { return; }
 
@@ -155,7 +150,7 @@ async function validateReadAllowed(dbItem:any, callerEmail:string) {
 // UPDATE VALIDATION
 
 function validateBodyUpdate(body:Object) {
-    assertParameterValid(body.hasOwnProperty('DappName'), "update: required argument 'DappName' not found");
+    console.log("Nothing to validate for 'update' body");
 }
 
 async function validateUpdateAllowed(dappName:string, callerEmail:string) {
@@ -171,7 +166,7 @@ async function validateUpdateAllowed(dappName:string, callerEmail:string) {
 // DELETE VALIDATION
 
 function validateBodyDelete(body:Object) {
-    assertParameterValid(body.hasOwnProperty('DappName'), "delete: required argument 'DappName' not found");
+    console.log("Nothing to validate for 'delete' body");
 }
 
 async function validateDeleteAllowed(dappName:string, callerEmail:string) {
@@ -213,7 +208,6 @@ function cleanDappName(name:string) {
 export default {
     createBody : validateBodyCreate,
     createAllowed : validateCreateAllowed,
-    readBody : validateBodyRead,
     readAllowed : validateReadAllowed,
     updateBody : validateBodyUpdate,
     updateAllowed : validateUpdateAllowed,
