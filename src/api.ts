@@ -47,7 +47,6 @@ async function apiCreate(rawDappName:string, body:any, callerEmail:string, cogni
     await callAndLog('Send SQS Message', sqs.sendMessage(methodName, JSON.stringify(sqsMessageBody)));
 
     let responseBody = {
-        method: methodName,
         message: "Dapp generation successfully initialized!  Check your URL in about 5 minutes."
     };
     return responseBody;
@@ -71,7 +70,6 @@ async function apiRead(rawDappName:string, callerEmail:string) {
 
     let itemExists = !!(outputItem as DappApiRepresentation).DappName;
     let responseBody = {
-        method: methodName,
         exists: itemExists,
         item: outputItem
     };
@@ -91,7 +89,6 @@ async function apiUpdate(rawDappName:string, body:any, callerEmail:string) {
 
     if (!abi && !web3URL && !guardianURL && !addr) {
         let responseBody = {
-            method: methodName,
             message: "No attributes specified to update."
         };
         return responseBody;
@@ -114,7 +111,6 @@ async function apiUpdate(rawDappName:string, body:any, callerEmail:string) {
     await callAndLog('Send SQS Message', sqs.sendMessage(methodName, JSON.stringify(sqsMessageBody)));
 
     let responseBody = {
-        method: methodName,
         message: "Your Dapp was successfully updated! Allow 5 minutes for rebuild, then check your URL."
     };
     return responseBody;
@@ -137,19 +133,17 @@ async function apiDelete(rawDappName:string, body:any, callerEmail:string) {
     await callAndLog('Send SQS Message', sqs.sendMessage(methodName, JSON.stringify(sqsMessageBody)));
 
     let responseBody = {
-        method: methodName,
         message: "Your Dapp was successfully deleted."
     };
     return responseBody;
 }
 
 async function apiList(callerEmail:string) {
-    const methodName = 'list';
+    const methodName = ApiMethods.list;
 
     let ddbResponse = await callAndLog('List DynamoDB Items', dynamoDB.getByOwner(callerEmail));
     let outputItems = ddbResponse.Items.map((item:PutItemInputAttributeMap) => dynamoDB.toApiRepresentation(item));
     let responseBody = {
-        method: methodName,
         count: ddbResponse.Count,
         items: outputItems
     };
@@ -174,7 +168,6 @@ async function apiView(rawDappName:string) {
     let dappHubItem = 'DappName' in apiItem ? transformForDappHub(apiItem) : {};
 
     let responseBody = {
-        method: methodName,
         exists: itemExists,
         item: dappHubItem
     };
