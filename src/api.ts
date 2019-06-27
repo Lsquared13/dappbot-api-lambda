@@ -53,8 +53,6 @@ async function apiCreate(rawDappName:string, body:any, callerEmail:string, cogni
 }
 
 async function apiRead(rawDappName:string, callerEmail:string) {
-    const methodName = ApiMethods.read;
-
     let dappName = validate.cleanName(rawDappName);
 
     let dbItem = await callAndLog('Get DynamoDB Item', dynamoDB.getItem(dappName));
@@ -139,8 +137,6 @@ async function apiDelete(rawDappName:string, body:any, callerEmail:string) {
 }
 
 async function apiList(callerEmail:string) {
-    const methodName = ApiMethods.list;
-
     let ddbResponse = await callAndLog('List DynamoDB Items', dynamoDB.getByOwner(callerEmail));
     let outputItems = ddbResponse.Items.map((item:PutItemInputAttributeMap) => dynamoDB.toApiRepresentation(item));
     let responseBody = {
@@ -157,7 +153,6 @@ function transformForDappHub(
 };
 
 async function apiView(rawDappName:string) {
-    const methodName = ApiMethods.view;
     let dappName = validate.cleanName(rawDappName);
 
     let dbItem = await callAndLog('Get DynamoDB Item', dynamoDB.getItem(dappName));
