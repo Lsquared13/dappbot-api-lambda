@@ -4,9 +4,29 @@ import { DappApiRepresentation, DappTiers, ApiMethods } from './common';
 import validate from './validate';
 import { PutItemInputAttributeMap } from 'aws-sdk/clients/dynamodb';
 
+const createSuccessMessageByTier = {
+    [DappTiers.POC]: "Dapp generation successfully initialized!  Check your URL in about 5 minutes.",
+    [DappTiers.STANDARD]: "Dapp successfully added to DappHub!",
+    [DappTiers.PROFESSIONAL]: "Dapp successfully added to DappHub!",
+    [DappTiers.ENTERPRISE]: "Enterprise Dapp build successfully initialized!"
+};
+
+const updateSuccessMessageByTier = {
+    [DappTiers.POC]: "Your Dapp was successfully updated! Allow 5 minutes for rebuild, then check your URL.",
+    [DappTiers.STANDARD]: "Dapp successfully updated!",
+    [DappTiers.PROFESSIONAL]: "Dapp successfully updated!",
+    [DappTiers.ENTERPRISE]: "Enterprise Dapp successfully updated! Source code build now in progress."
+};
+
+const deleteSuccessMessageByTier = {
+    [DappTiers.POC]: "Your Dapp was successfully deleted.",
+    [DappTiers.STANDARD]: "Dapp successfully deleted from DappHub.",
+    [DappTiers.PROFESSIONAL]: "Dapp successfully deleted from DappHub.",
+    [DappTiers.ENTERPRISE]: "Enterprise Dapp successfully deleted."
+};
+
 const logSuccess = (stage:string, res:any) => { console.log(`Successfully completed ${stage}; result: `, res) }
 const logErr = (stage:string, err:any) => { console.log(`Error on ${stage}: `, err) }
-
 
 async function callAndLog(stage:string, promise:Promise<any>) {
     try {
@@ -47,7 +67,7 @@ async function apiCreate(rawDappName:string, body:any, callerEmail:string, cogni
     await callAndLog('Send SQS Message', sqs.sendMessage(methodName, JSON.stringify(sqsMessageBody)));
 
     let responseBody = {
-        message: "Dapp generation successfully initialized!  Check your URL in about 5 minutes."
+        message: createSuccessMessageByTier[dappTier as DappTiers]
     };
     return responseBody;
 }
@@ -93,6 +113,7 @@ async function apiUpdate(rawDappName:string, body:any, callerEmail:string) {
     }
 
     let dbItem = await validate.updateAllowed(dappName, callerEmail);
+    let dappTier = dbItem.Tier.S;
 
     let updateAttrs = {
         Abi: abi,
@@ -109,7 +130,7 @@ async function apiUpdate(rawDappName:string, body:any, callerEmail:string) {
     await callAndLog('Send SQS Message', sqs.sendMessage(methodName, JSON.stringify(sqsMessageBody)));
 
     let responseBody = {
-        message: "Your Dapp was successfully updated! Allow 5 minutes for rebuild, then check your URL."
+        message: updateSuccessMessageByTier[dappTier as DappTiers]
     };
     return responseBody;
 }
@@ -121,6 +142,7 @@ async function apiDelete(rawDappName:string, body:any, callerEmail:string) {
     let dappName = validate.cleanName(rawDappName);
 
     let dbItem = await validate.deleteAllowed(dappName, callerEmail);
+    let dappTier = dbItem.Tier.S;
 
     let sqsMessageBody = {
         Method: methodName,
@@ -131,7 +153,7 @@ async function apiDelete(rawDappName:string, body:any, callerEmail:string) {
     await callAndLog('Send SQS Message', sqs.sendMessage(methodName, JSON.stringify(sqsMessageBody)));
 
     let responseBody = {
-        message: "Your Dapp was successfully deleted."
+        message: deleteSuccessMessageByTier[dappTier as DappTiers]
     };
     return responseBody;
 }
