@@ -1,6 +1,6 @@
 import services from './services';
 const { sqs, dynamoDB } = services; 
-import { DappApiRepresentation, DappTiers } from './common';
+import { DappApiRepresentation, DappTiers, ApiMethods } from './common';
 import validate from './validate';
 import { PutItemInputAttributeMap } from 'aws-sdk/clients/dynamodb';
 
@@ -19,11 +19,11 @@ async function callAndLog(stage:string, promise:Promise<any>) {
     }
 }
 
-async function apiCreate(body:any, callerEmail:string, cognitoUsername:string) {
-    const methodName = 'create';
+async function apiCreate(rawDappName:string, body:any, callerEmail:string, cognitoUsername:string) {
+    const methodName = ApiMethods.create;
     validate.createBody(body);
 
-    let dappName = validate.cleanName(body.DappName);
+    let dappName = validate.cleanName(rawDappName);
     let abi = body.Abi;
     let addr = body.ContractAddr;
     let web3URL = body.Web3URL;
@@ -47,17 +47,15 @@ async function apiCreate(body:any, callerEmail:string, cognitoUsername:string) {
     await callAndLog('Send SQS Message', sqs.sendMessage(methodName, JSON.stringify(sqsMessageBody)));
 
     let responseBody = {
-        method: methodName,
         message: "Dapp generation successfully initialized!  Check your URL in about 5 minutes."
     };
     return responseBody;
 }
 
-async function apiRead(body:any, callerEmail:string) {
-    const methodName = 'read';
-    validate.readBody(body);
+async function apiRead(rawDappName:string, callerEmail:string) {
+    const methodName = ApiMethods.read;
 
-    let dappName = validate.cleanName(body.DappName);
+    let dappName = validate.cleanName(rawDappName);
 
     let dbItem = await callAndLog('Get DynamoDB Item', dynamoDB.getItem(dappName));
 
@@ -72,18 +70,17 @@ async function apiRead(body:any, callerEmail:string) {
 
     let itemExists = !!(outputItem as DappApiRepresentation).DappName;
     let responseBody = {
-        method: methodName,
         exists: itemExists,
         item: outputItem
     };
     return responseBody;
 }
 
-async function apiUpdate(body:any, callerEmail:string) {
-    const methodName = 'update';
+async function apiUpdate(rawDappName:string, body:any, callerEmail:string) {
+    const methodName = ApiMethods.update;
     validate.updateBody(body);
 
-    let dappName = validate.cleanName(body.DappName);
+    let dappName = validate.cleanName(rawDappName);
     // These values may or may not be defined
     let abi = body.Abi;
     let addr = body.ContractAddr;
@@ -92,7 +89,6 @@ async function apiUpdate(body:any, callerEmail:string) {
 
     if (!abi && !web3URL && !guardianURL && !addr) {
         let responseBody = {
-            method: methodName,
             message: "No attributes specified to update."
         };
         return responseBody;
@@ -115,17 +111,16 @@ async function apiUpdate(body:any, callerEmail:string) {
     await callAndLog('Send SQS Message', sqs.sendMessage(methodName, JSON.stringify(sqsMessageBody)));
 
     let responseBody = {
-        method: methodName,
         message: "Your Dapp was successfully updated! Allow 5 minutes for rebuild, then check your URL."
     };
     return responseBody;
 }
 
-async function apiDelete(body:any, callerEmail:string) {
-    const methodName = 'delete';
+async function apiDelete(rawDappName:string, body:any, callerEmail:string) {
+    const methodName = ApiMethods.delete;
     validate.deleteBody(body);
 
-    let dappName = validate.cleanName(body.DappName);
+    let dappName = validate.cleanName(rawDappName);
 
     let dbItem = await validate.deleteAllowed(dappName, callerEmail);
 
@@ -138,19 +133,17 @@ async function apiDelete(body:any, callerEmail:string) {
     await callAndLog('Send SQS Message', sqs.sendMessage(methodName, JSON.stringify(sqsMessageBody)));
 
     let responseBody = {
-        method: methodName,
         message: "Your Dapp was successfully deleted."
     };
     return responseBody;
 }
 
 async function apiList(callerEmail:string) {
-    const methodName = 'list';
+    const methodName = ApiMethods.list;
 
     let ddbResponse = await callAndLog('List DynamoDB Items', dynamoDB.getByOwner(callerEmail));
     let outputItems = ddbResponse.Items.map((item:PutItemInputAttributeMap) => dynamoDB.toApiRepresentation(item));
     let responseBody = {
-        method: methodName,
         count: ddbResponse.Count,
         items: outputItems
     };
@@ -163,10 +156,9 @@ function transformForDappHub(
     return {Abi, DappName, GuardianURL, Web3URL, ContractAddr};
 };
 
-async function apiView(body:any) {
-    const methodName = 'view';
-    validate.readBody(body);
-    let dappName = validate.cleanName(body.DappName);
+async function apiView(rawDappName:string) {
+    const methodName = ApiMethods.view;
+    let dappName = validate.cleanName(rawDappName);
 
     let dbItem = await callAndLog('Get DynamoDB Item', dynamoDB.getItem(dappName));
 
@@ -176,7 +168,6 @@ async function apiView(body:any) {
     let dappHubItem = 'DappName' in apiItem ? transformForDappHub(apiItem) : {};
 
     let responseBody = {
-        method: methodName,
         exists: itemExists,
         item: dappHubItem
     };

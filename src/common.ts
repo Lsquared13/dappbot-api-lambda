@@ -60,3 +60,21 @@ export enum DappTiers {
     PROFESSIONAL = 'PROFESSIONAL',
     ENTERPRISE = 'ENTERPRISE'
 }
+
+export enum HttpMethods {
+    OPTIONS = 'OPTIONS',
+    GET = 'GET',
+    POST = 'POST',
+    PUT = 'PUT',
+    DELETE = 'DELETE'
+}
+
+export enum ApiMethods {
+    read = 'read',
+    view = 'view',
+    list = 'list',
+    create = 'create',
+    update = 'update',
+    delete = 'delete'
+
+}
