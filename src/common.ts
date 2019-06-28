@@ -52,6 +52,7 @@ export interface DappApiRepresentation extends ValidCreateBody {
 export interface ResponseOptions {
     isErr? : boolean
     isCreate? : boolean
+    errorResponseCode? : number
 }
 
 export enum DappTiers {

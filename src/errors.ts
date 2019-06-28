@@ -8,7 +8,14 @@ export class ValidationError {
     }
 }
 
-export class ParameterValidationError extends ValidationError {
+export class Error422 extends ValidationError {
+    constructor(message:string) {
+        super(message);
+        this.name = "Error422";
+    }
+}
+
+export class ParameterValidationError extends Error422 {
     constructor(message:string) {
         super(message);
         this.name = "ParameterValidationError";

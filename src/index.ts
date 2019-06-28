@@ -1,6 +1,7 @@
 'use strict';
 import api from './api';
 import { ResponseOptions, HttpMethods, ApiMethods } from './common';
+import { Error422 } from './errors';
 import { APIGatewayEvent } from './gateway-event-type';
 
 exports.publicHandler = async(event:APIGatewayEvent) => {
@@ -103,6 +104,9 @@ exports.privateHandler = async (event:APIGatewayEvent) => {
         let responseBody = await responsePromise;
         return successResponse(responseBody, responseOpts);
     } catch (err) {
+        if (err instanceof Error422) {
+            responseOpts.errorResponseCode = 422;
+        }
         return errorResponse(err, responseOpts);
     }
 };
@@ -113,7 +117,11 @@ function response(body:any, opts:ResponseOptions) {
     let responseCode = 200;
     // Override response code based on opts
     if (opts.isErr) {
-        responseCode = 500;
+        if (opts.errorResponseCode) {
+            responseCode = opts.errorResponseCode;
+        } else {
+            responseCode = 500;
+        }
     } else if (opts.isCreate) {
         responseCode = 201;
     }
