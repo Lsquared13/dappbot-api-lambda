@@ -33,9 +33,9 @@ exports.publicHandler = async(event:APIGatewayEvent) => {
                 let err = {message: `Unrecognized public ApiMethod ${method}`};
                 throw err;
         }
-        return successResponse(response);
+        return successResponse(response, responseOpts);
     } catch (err) {
-        return errorResponse(err);
+        return errorResponse(err, responseOpts);
     }
 }
 
