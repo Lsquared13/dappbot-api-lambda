@@ -1,7 +1,7 @@
 import { DappTiers, ValidCreateBody } from './common';
 import services from './services';
 const { cognito, dynamoDB } = services;
-import { assertParameterValid, assertOperationAllowed, assertDappNameNotTaken, assertInternal, throwInternalValidationError } from './errors';
+import { assertParameterValid, assertOperationAllowed, assertDappFound, assertDappNameNotTaken, assertInternal, throwInternalValidationError } from './errors';
 import { AttributeListType } from "aws-sdk/clients/cognitoidentityserviceprovider";
 
 const dappTierToLimitAttr = {
@@ -169,7 +169,7 @@ function validateBodyDelete(body:Object) {
 
 async function validateDeleteAllowed(dappName:string, callerEmail:string) {
     let dbItem = await dynamoDB.getItem(dappName);
-    assertOperationAllowed(dbItem.Item, "Dapp Not Found");
+    assertDappFound(dbItem.Item, "Dapp Not Found");
 
     if (isAdmin(callerEmail)) {
         return dbItem.Item;

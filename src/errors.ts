@@ -43,6 +43,20 @@ export class DappNameTakenError extends Error409 {
     }
 }
 
+export class Error404 extends OperationNotAllowedError {
+    constructor(message:string) {
+        super(message);
+        this.name = "Error404";
+    }
+}
+
+export class DappNotFound extends Error404 {
+    constructor(message:string) {
+        super(message);
+        this.name = "DappNotFound";
+    }
+}
+
 export class DappItemValidationError extends ValidationError {
     constructor(message:string) {
         super(message);
@@ -74,6 +88,10 @@ export function assertOperationAllowed(condition:any, message:string) {
 
 export function assertDappNameNotTaken(condition:any, message:string) {
     return assert(condition, message, DappNameTakenError);
+}
+
+export function assertDappFound(condition:any, message:string) {
+    return assert(condition, message, DappNotFound);
 }
 
 export function assertDappItemValid(condition:any, message:string) {

@@ -1,7 +1,7 @@
 'use strict';
 import api from './api';
 import { ResponseOptions, HttpMethods, ApiMethods } from './common';
-import { Error422, Error409 } from './errors';
+import { Error422, Error409, Error404 } from './errors';
 import { APIGatewayEvent } from './gateway-event-type';
 
 exports.publicHandler = async(event:APIGatewayEvent) => {
@@ -108,6 +108,8 @@ exports.privateHandler = async (event:APIGatewayEvent) => {
             responseOpts.errorResponseCode = 422;
         } else if (err instanceof Error409) {
             responseOpts.errorResponseCode = 409;
+        } else if (err instanceof Error404) {
+            responseOpts.errorResponseCode = 404;
         }
         return errorResponse(err, responseOpts);
     }
