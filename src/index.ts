@@ -6,6 +6,7 @@ import { APIGatewayEvent } from './gateway-event-type';
 
 exports.publicHandler = async(event:APIGatewayEvent) => {
     console.log("request: " + JSON.stringify(event));
+    let responseOpts:ResponseOptions = {};
 
     let method:ApiMethods;
     switch(event.httpMethod) {
@@ -25,6 +26,7 @@ exports.publicHandler = async(event:APIGatewayEvent) => {
         let response;
         switch(method) {
             case ApiMethods.view:
+                responseOpts.isRead = true;
                 response = await api.view(rawDappName);
                 break;
             default:
