@@ -29,6 +29,20 @@ export class OperationNotAllowedError extends ValidationError {
     }
 }
 
+export class Error409 extends OperationNotAllowedError {
+    constructor(message:string) {
+        super(message);
+        this.name = "Error409";
+    }
+}
+
+export class DappNameTakenError extends Error409 {
+    constructor(message:string) {
+        super(message);
+        this.name = "DappNameTakenError";
+    }
+}
+
 export class DappItemValidationError extends ValidationError {
     constructor(message:string) {
         super(message);
@@ -56,6 +70,10 @@ export function assertParameterValid(condition:any, message:string) {
 
 export function assertOperationAllowed(condition:any, message:string) {
     return assert(condition, message, OperationNotAllowedError);
+}
+
+export function assertDappNameNotTaken(condition:any, message:string) {
+    return assert(condition, message, DappNameTakenError);
 }
 
 export function assertDappItemValid(condition:any, message:string) {

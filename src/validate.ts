@@ -1,7 +1,7 @@
 import { DappTiers, ValidCreateBody } from './common';
 import services from './services';
 const { cognito, dynamoDB } = services;
-import { assertParameterValid, assertOperationAllowed, assertInternal, throwInternalValidationError } from './errors';
+import { assertParameterValid, assertOperationAllowed, assertDappNameNotTaken, assertInternal, throwInternalValidationError } from './errors';
 import { AttributeListType } from "aws-sdk/clients/cognitoidentityserviceprovider";
 
 const dappTierToLimitAttr = {
@@ -126,16 +126,14 @@ async function validateNameNotTaken(dappName:string) {
         console.log("Error retrieving DB Item for create validation", err);
         throw err;
     }
-    assertOperationAllowed(!existingItem.Item, `DappName ${dappName} is already taken. Please choose another name.`);
+    assertDappNameNotTaken(!existingItem.Item, `DappName ${dappName} is already taken. Please choose another name.`);
 }
 
 async function validateCreateAllowed(dappName:string, cognitoUsername:string, callerEmail:string, dappTier:DappTiers) {
     validateAllowedDappName(dappName, callerEmail);
     validateTier(dappTier);
-    let limitCheck = validateLimitsCreate(cognitoUsername, callerEmail, dappTier);
-    let nameTakenCheck = validateNameNotTaken(dappName);
-    await limitCheck;
-    await nameTakenCheck;
+    await validateNameNotTaken(dappName);
+    await validateLimitsCreate(cognitoUsername, callerEmail, dappTier);
 }
 
 // READ VALIDATION
