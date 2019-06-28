@@ -1,7 +1,7 @@
 const uuidv4 = require('uuid/v4');
 const { dnsRoot } = require('../env');
 
-const s3BucketPrefix = "exim-abi-clerk-";
+const s3BucketPrefix = "exim-dappbot-";
 
 export function createS3BucketName() {
     return s3BucketPrefix.concat(uuidv4());
