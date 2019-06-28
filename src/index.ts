@@ -92,6 +92,7 @@ exports.privateHandler = async (event:APIGatewayEvent) => {
             case ApiMethods.delete:
                 return api.delete(rawDappName, body, callerEmail);
             case ApiMethods.read:
+                responseOpts.isRead = true;
                 return api.read(rawDappName, callerEmail);
             case ApiMethods.list:
                 return api.list(callerEmail);
@@ -128,6 +129,12 @@ function response(body:any, opts:ResponseOptions) {
         }
     } else if (opts.isCreate) {
         responseCode = 201;
+    } else if (opts.isRead) {
+        if (body.hasOwnProperty("exists") && !body.exists) {
+            // Dapp Not Found
+            // This looks like a success response but uses error code 404
+            responseCode = 404;
+        }
     }
 
     let responseHeaders = {
