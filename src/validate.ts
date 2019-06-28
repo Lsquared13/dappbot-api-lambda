@@ -153,7 +153,7 @@ function validateBodyUpdate(body:Object) {
 
 async function validateUpdateAllowed(dappName:string, callerEmail:string) {
     let dbItem = await dynamoDB.getItem(dappName);
-    assertOperationAllowed(dbItem.Item, "Dapp Not Found");
+    assertDappFound(dbItem.Item, "Dapp Not Found");
 
     let dbOwner = dbItem.Item.OwnerEmail.S;
     assertOperationAllowed(callerEmail === dbOwner, "You do not have permission to update the specified Dapp.");
