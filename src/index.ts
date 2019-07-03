@@ -16,19 +16,25 @@ exports.publicHandler = async(event:APIGatewayEvent) => {
         case HttpMethods.GET:
             method = ApiMethods.view;
             break;
+        case HttpMethods.POST:
+            method = ApiMethods.login;
+            break;
         default:
             let err = {message: `Unrecognized public HttpMethod ${event.httpMethod}`};
             return errorResponse(err);
     }
 
-    let rawDappName = event.pathParameters.proxy;
     try {
         let response;
         switch(method) {
             case ApiMethods.view:
                 responseOpts.isRead = true;
+                let rawDappName = event.pathParameters.proxy;
                 response = await api.view(rawDappName);
                 break;
+            case ApiMethods.login:
+                let body = event.body ? JSON.parse(event.body) : {};
+                response = await api.login(body);
             default:
                 let err = {message: `Unrecognized public ApiMethod ${method}`};
                 throw err;

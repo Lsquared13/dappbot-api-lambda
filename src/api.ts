@@ -191,11 +191,18 @@ async function apiView(rawDappName:string) {
     return responseBody;
 }
 
+async function apiLogin(body:any) {
+    validate.loginBody(body);
+
+    // TODO: Use Cognito service to perform actual login
+}
+
 export default {
     create : apiCreate,
     read : apiRead,
     update : apiUpdate,
     delete : apiDelete,
     list : apiList,
-    view : apiView
+    view : apiView,
+    login : apiList
 }

@@ -77,6 +77,6 @@ export enum ApiMethods {
     list = 'list',
     create = 'create',
     update = 'update',
-    delete = 'delete'
-
+    delete = 'delete',
+    login  = 'login'
 }

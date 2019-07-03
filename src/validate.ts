@@ -181,6 +181,13 @@ async function validateDeleteAllowed(dappName:string, callerEmail:string) {
     return dbItem.Item;
 }
 
+// LOGIN VALIDATION
+
+function validateBodyLogin(body:Object){
+    assertParameterValid(body.hasOwnProperty('username'), "login: required argument 'username' not found");
+    assertParameterValid(body.hasOwnProperty('password'), "login: required argument 'password' not found");
+}
+
 // HELPER FUNCTIONS
 
 /*
@@ -211,5 +218,6 @@ export default {
     updateAllowed : validateUpdateAllowed,
     deleteBody : validateBodyDelete,
     deleteAllowed : validateDeleteAllowed,
+    loginBody : validateBodyLogin,
     cleanName : cleanDappName
 }
