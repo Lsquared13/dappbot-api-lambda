@@ -1,8 +1,8 @@
 import services from './services';
-const { sqs, dynamoDB } = services; 
+const { sqs, dynamoDB, cognito } = services; 
 import { DappApiRepresentation, DappTiers, ApiMethods } from './common';
 import validate from './validate';
-import { PutItemInputAttributeMap } from 'aws-sdk/clients/dynamodb';
+import { CognitoIdentityServiceProvider, DynamoDB } from 'aws-sdk';
 
 const createSuccessMessageByTier = {
     [DappTiers.POC]: "Dapp generation successfully initialized!  Check your URL in about 5 minutes.",
@@ -28,7 +28,7 @@ const deleteSuccessMessageByTier = {
 const logSuccess = (stage:string, res:any) => { console.log(`Successfully completed ${stage}; result: `, res) }
 const logErr = (stage:string, err:any) => { console.log(`Error on ${stage}: `, err) }
 
-async function callAndLog(stage:string, promise:Promise<any>) {
+async function callAndLog<ReturnType = any>(stage:string, promise:Promise<ReturnType>) {
     try {
         let res = await promise;
         logSuccess(stage, res);
@@ -160,9 +160,9 @@ async function apiDelete(rawDappName:string, body:any, callerEmail:string) {
 
 async function apiList(callerEmail:string) {
     let ddbResponse = await callAndLog('List DynamoDB Items', dynamoDB.getByOwner(callerEmail));
-    let outputItems = ddbResponse.Items.map((item:PutItemInputAttributeMap) => dynamoDB.toApiRepresentation(item));
+    let outputItems = (ddbResponse.Items || []).map((item:DynamoDB.PutItemInputAttributeMap) => dynamoDB.toApiRepresentation(item));
     let responseBody = {
-        count: ddbResponse.Count,
+        count: outputItems.length,
         items: outputItems
     };
     return responseBody;
@@ -193,8 +193,22 @@ async function apiView(rawDappName:string) {
 
 async function apiLogin(body:any) {
     validate.loginBody(body);
+    const { username, password } = body;
 
-    // TODO: Use Cognito service to perform actual login
+    let loginResult = await callAndLog('Logging into Cognito', cognito.login(username, password));
+
+    let responseBody;
+    if (loginResult.AuthenticationResult) {
+        responseBody = {
+            AuthToken : loginResult.AuthenticationResult.IdToken as string
+        }
+    } else {
+        responseBody = {
+            ChallengeName : loginResult.ChallengeName as string,
+            ChallengeParameters : loginResult.ChallengeParameters as CognitoIdentityServiceProvider.ChallengeParametersType
+        }
+    }
+    return responseBody;
 }
 
 export default {
@@ -204,5 +218,5 @@ export default {
     delete : apiDelete,
     list : apiList,
     view : apiView,
-    login : apiList
+    login : apiLogin
 }

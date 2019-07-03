@@ -12,7 +12,17 @@ function promiseAdminGetUser(cognitoUsername:string) {
 }
 
 function promiseClientLogin(cognitoUsername:string, cognitoPassword:string){
-    // TODO: Add proper call
+    let maxRetries = 5;
+    let params = {
+        AuthFlow : 'USER_PASSWORD_AUTH',
+        AuthParameters : {
+            'USERNAME' : cognitoUsername,
+            'PASSWORD' : cognitoPassword
+        },
+        ClientId : cognitoClientId,
+        UserPoolId : cognitoUserPoolId
+    }
+    return addAwsPromiseRetries(() => cognito.adminInitiateAuth(params).promise(), maxRetries)
 }
 
 export default {

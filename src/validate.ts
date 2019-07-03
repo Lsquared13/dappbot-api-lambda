@@ -3,6 +3,7 @@ import services from './services';
 const { cognito, dynamoDB } = services;
 import { assertParameterValid, assertOperationAllowed, assertDappFound, assertDappNameNotTaken, assertInternal, throwInternalValidationError } from './errors';
 import { AttributeListType } from "aws-sdk/clients/cognitoidentityserviceprovider";
+import { DynamoDB } from 'aws-sdk';
 
 const dappTierToLimitAttr = {
     [DappTiers.POC]: 'custom:num_dapps',
@@ -83,7 +84,7 @@ async function validateLimitsCreate(cognitoUsername:string, ownerEmail:string, t
         let user = await cognito.getUser(cognitoUsername);
         console.log("Found Cognito User", user);
 
-        let attrList:AttributeListType = user.UserAttributes;
+        let attrList = user.UserAttributes as AttributeListType;
         let dappLimitAttr = attrList.filter(attr => attr.Name === dappTierToLimitAttr[tier]);
         let dappLimit;
         if (dappLimitAttr.length === 0) {
@@ -153,12 +154,13 @@ function validateBodyUpdate(body:Object) {
 
 async function validateUpdateAllowed(dappName:string, callerEmail:string) {
     let dbItem = await dynamoDB.getItem(dappName);
-    assertDappFound(dbItem.Item, "Dapp Not Found");
+    let item = dbItem.Item as DynamoDB.AttributeMap;
+    assertDappFound(item, "Dapp Not Found");
 
-    let dbOwner = dbItem.Item.OwnerEmail.S;
+    let dbOwner = item.OwnerEmail.S;
     assertOperationAllowed(callerEmail === dbOwner, "You do not have permission to update the specified Dapp.");
 
-    return dbItem.Item;
+    return item;
 }
 
 // DELETE VALIDATION
@@ -169,16 +171,17 @@ function validateBodyDelete(body:Object) {
 
 async function validateDeleteAllowed(dappName:string, callerEmail:string) {
     let dbItem = await dynamoDB.getItem(dappName);
-    assertDappFound(dbItem.Item, "Dapp Not Found");
+    let item = dbItem.Item as DynamoDB.AttributeMap;
+    assertDappFound(item, "Dapp Not Found");
 
     if (isAdmin(callerEmail)) {
-        return dbItem.Item;
+        return item;
     }
 
-    let dbOwner = dbItem.Item.OwnerEmail.S;
+    let dbOwner = item.OwnerEmail.S;
     assertOperationAllowed(callerEmail === dbOwner, "You do not have permission to delete the specified Dapp.");
 
-    return dbItem.Item;
+    return item;
 }
 
 // LOGIN VALIDATION

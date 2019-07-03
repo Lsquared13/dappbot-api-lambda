@@ -51,7 +51,7 @@ function serializeDdbItem(
     return item;
 }
 
-function dbItemToApiRepresentation(dbItem:PutItemInputAttributeMap): (DappApiRepresentation | {}) {
+function dbItemToApiRepresentation(dbItem:PutItemInputAttributeMap | undefined): (DappApiRepresentation | {}) {
     if (!dbItem) {
         return {};
     }
@@ -181,7 +181,7 @@ function promiseGetItemsByOwner(ownerEmail:string) {
 
 async function getItemsByOwnerAndTier(ownerEmail:string, tier:DappTiers) {
     let getByOwnerResult = await promiseGetItemsByOwner(ownerEmail);
-    let allDappItems = getByOwnerResult.Items;
+    let allDappItems = getByOwnerResult.Items || [];
     console.log(`Number of dapps owned by ${ownerEmail}: `, allDappItems.length);
 
     let dappItemsForTier = allDappItems.filter((item:AttributeMap) => item.Tier.S === tier);

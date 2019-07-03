@@ -1,9 +1,9 @@
 /*
 Returns a Promise that rejects with reason after msDelay milliseconds
 */
-export function rejectDelay(reason:string) {
+export function rejectDelay<SuccessType>(reason:string) {
     let msDelay = 700;
-    return new Promise(function(resolve, reject) {
+    return new Promise<SuccessType>(function(resolve, reject) {
         setTimeout(reject.bind(null, reason), msDelay); 
     });
 }
@@ -12,9 +12,9 @@ export function rejectDelay(reason:string) {
 Retries a promise returned by promiseGenerator up to maxRetries times as long as the error is retryable
 Based on https://stackoverflow.com/questions/38213668/promise-retry-design-patterns
 */
-export function addAwsPromiseRetries(promiseGenerator:()=>Promise<any>, maxRetries:number) {
+export function addAwsPromiseRetries<ReturnType = any>(promiseGenerator:()=>Promise<ReturnType>, maxRetries:number) {
     // Ensure we call promiseGenerator on the first iteration
-    let p:Promise<any> = Promise.reject({retryable: true});
+    let p:Promise<ReturnType> = Promise.reject({retryable: true});
 
     /*
     Appends maxRetries number of retry and delay promises to an AWS promise, returning once a retry promise resolves.
@@ -26,9 +26,9 @@ export function addAwsPromiseRetries(promiseGenerator:()=>Promise<any>, maxRetri
     */
     for(var i=0; i<maxRetries; i++) {
         p = p.catch(err => err.retryable ? promiseGenerator() : Promise.reject(err))
-             .catch(err => err.retryable ? rejectDelay(err) : Promise.reject(err));
+             .catch(err => err.retryable ? rejectDelay<ReturnType>(err) : Promise.reject(err));
     }
-    return p;
+    return p as Promise<ReturnType>;
 }
 
 export interface ValidCreateBody {
