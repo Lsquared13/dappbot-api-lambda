@@ -3,6 +3,7 @@ const { sqs, dynamoDB } = services;
 import { DappApiRepresentation, DappTiers, ApiMethods } from './common';
 import validate from './validate';
 import { PutItemInputAttributeMap } from 'aws-sdk/clients/dynamodb';
+import { assertParameterValid } from './errors';
 
 const createSuccessMessageByTier = {
     [DappTiers.POC]: "Dapp generation successfully initialized!  Check your URL in about 5 minutes.",
@@ -55,6 +56,10 @@ async function apiCreate(rawDappName:string, body:any, callerEmail:string, cogni
         targetRepoName = body.TargetRepoName;
         targetRepoOwner = body.TargetRepoOwner;
     }
+
+    // Disable Unimplemented Tiers
+    // TODO: Remove when all tiers are implemented
+    assertParameterValid(dappTier === DappTiers.STANDARD, `Dapp Tier '${dappTier}' is not available.`);
     
     await validate.createAllowed(dappName, cognitoUsername, callerEmail, dappTier);
 
