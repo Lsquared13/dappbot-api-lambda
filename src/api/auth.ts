@@ -28,7 +28,7 @@ function perCaseErrMsg({ endpoint, actionsMissing }:PerCaseErrMsgArgs){
 
 type AuthResult = CognitoTypes.InitiateAuthResponse | CognitoTypes.RespondToAuthChallengeResponse;
 
-async function buildAuthAndChallengeResponse(authResult:AuthResult){
+async function buildChallengeResponseBody(authResult:AuthResult){
   let responseBody;
   if (authResult.AuthenticationResult) {
     responseBody = {
@@ -68,7 +68,7 @@ async function apiLogin(body: any) {
         let loginResult = await callAndLog('Logging into Cognito', 
           cognito.login(body.username, body.password)
         );
-        return buildAuthAndChallengeResponse(loginResult);
+        return buildChallengeResponseBody(loginResult);
 
       } catch (err) {
 
@@ -97,7 +97,7 @@ async function apiLogin(body: any) {
       const newPassResult = await callAndLog('Confirming new password', 
         cognito.confirmNewPassword(body.session, body.username, body.newPassword)
       );
-      return buildAuthAndChallengeResponse(newPassResult);
+      return buildChallengeResponseBody(newPassResult);
 
     case LoginActions.ConfirmMFASetup:
       const confirmMFASetupResult = await callAndLog('Confirming MFA Setup', 
@@ -118,7 +118,7 @@ async function apiLogin(body: any) {
         const confirmMFALoginResult = await callAndLog('Confirming MFA Login', 
           cognito.confirmMFALogin(body.session, body.username, body.mfaLoginCode)
         );
-        return buildAuthAndChallengeResponse(confirmMFALoginResult);
+        return buildChallengeResponseBody(confirmMFALoginResult);
 
     default:
       throw new Error(perCaseErrMsg({

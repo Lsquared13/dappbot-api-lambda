@@ -5,6 +5,7 @@ import { Error422, Error409, Error404 } from './errors';
 import { APIGatewayEvent } from './gateway-event-type';
 
 exports.authHandler = async(event:APIGatewayEvent) => {
+    console.log("request: "+JSON.stringify(event));
     let responseOpts:ResponseOptions = {};
 
     let apiMethod = event.pathParameters.proxy;
@@ -54,14 +55,6 @@ exports.publicHandler = async(event:APIGatewayEvent) => {
         case HttpMethods.GET:
             method = ApiMethods.view;
             break;
-        case HttpMethods.POST:
-            if (rawDappName === 'login'){
-                method = ApiMethods.login;
-                break;
-            } else {
-                let err = { message : `Invalid call to /public/${rawDappName}.  HttpMethod POST can only be sent to the public API for /public/login.`}
-                return errorResponse(err);
-            }
         default:
             let err = {message: `Unrecognized public HttpMethod ${event.httpMethod}`};
             return errorResponse(err);
