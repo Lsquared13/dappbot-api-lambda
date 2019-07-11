@@ -2,8 +2,7 @@ import { DappTiers, ValidCreateBody } from './common';
 import services from './services';
 const { cognito, dynamoDB } = services;
 import { assertParameterValid, assertOperationAllowed, assertDappFound, assertDappNameNotTaken, assertInternal, throwInternalValidationError } from './errors';
-import { AttributeListType } from "aws-sdk/clients/cognitoidentityserviceprovider";
-import { DynamoDB } from 'aws-sdk';
+import { DynamoDB, CognitoIdentityServiceProvider } from 'aws-sdk';
 
 const dappTierToLimitAttr = {
     [DappTiers.POC]: 'custom:num_dapps',
@@ -84,7 +83,7 @@ async function validateLimitsCreate(cognitoUsername:string, ownerEmail:string, t
         let user = await cognito.getUser(cognitoUsername);
         console.log("Found Cognito User", user);
 
-        let attrList = user.UserAttributes as AttributeListType;
+        let attrList = user.UserAttributes as CognitoIdentityServiceProvider.AttributeListType;
         let dappLimitAttr = attrList.filter(attr => attr.Name === dappTierToLimitAttr[tier]);
         let dappLimit;
         if (dappLimitAttr.length === 0) {
@@ -154,8 +153,8 @@ function validateBodyUpdate(body:Object) {
 
 async function validateUpdateAllowed(dappName:string, callerEmail:string) {
     let dbItem = await dynamoDB.getItem(dappName);
+    assertDappFound(dbItem.Item, "Dapp Not Found");
     let item = dbItem.Item as DynamoDB.AttributeMap;
-    assertDappFound(item, "Dapp Not Found");
 
     let dbOwner = item.OwnerEmail.S;
     assertOperationAllowed(callerEmail === dbOwner, "You do not have permission to update the specified Dapp.");
@@ -171,8 +170,8 @@ function validateBodyDelete(body:Object) {
 
 async function validateDeleteAllowed(dappName:string, callerEmail:string) {
     let dbItem = await dynamoDB.getItem(dappName);
+    assertDappFound(dbItem.Item, "Dapp Not Found");
     let item = dbItem.Item as DynamoDB.AttributeMap;
-    assertDappFound(item, "Dapp Not Found");
 
     if (isAdmin(callerEmail)) {
         return item;
@@ -189,6 +188,26 @@ async function validateDeleteAllowed(dappName:string, callerEmail:string) {
 function validateBodyLogin(body:Object){
     assertParameterValid(body.hasOwnProperty('username'), "login: required argument 'username' not found");
     assertParameterValid(body.hasOwnProperty('password'), "login: required argument 'password' not found");
+}
+
+function validateBodyConfirmNewPassword(body:Object){
+    assertParameterValid(body.hasOwnProperty('username'), "confirmNewPassword: required argument 'username' not found");
+    assertParameterValid(body.hasOwnProperty('newPassword'), "confirmNewPassword: required argument 'newPassword' not found");
+    assertParameterValid(body.hasOwnProperty('session'), "confirmNewPassword: required argument 'session' not found");
+}
+
+function validateBodyConfirmMFA(body:Object){
+    assertParameterValid(body.hasOwnProperty('username'), "confirmMFA: required argument 'username' not found");
+    assertParameterValid(body.hasOwnProperty('code'), "confirmMFA: required argument 'code' not found");
+    assertParameterValid(body.hasOwnProperty('session'), "confirmMFA: required argument 'session' not found");
+}
+
+function validateBodyBeginForgotPassword(body:Object){
+
+}
+
+function validateBodyConfirmForgotPassword(body:Object){
+
 }
 
 // HELPER FUNCTIONS
@@ -222,5 +241,9 @@ export default {
     deleteBody : validateBodyDelete,
     deleteAllowed : validateDeleteAllowed,
     loginBody : validateBodyLogin,
+    confirmNewPasswordBody : validateBodyConfirmNewPassword,
+    confirmMFABody : validateBodyConfirmMFA,
+    beginForgotPasswordBody : validateBodyBeginForgotPassword,
+    confirmForgotPasswordBody : validateBodyConfirmForgotPassword,
     cleanName : cleanDappName
 }

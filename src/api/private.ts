@@ -1,7 +1,7 @@
-import services from './services';
-const { sqs, dynamoDB, cognito } = services; 
-import { DappApiRepresentation, DappTiers, ApiMethods } from './common';
-import validate from './validate';
+import services from '../services';
+const { sqs, dynamoDB } = services; 
+import { DappApiRepresentation, DappTiers, ApiMethods, callAndLog } from '../common';
+import validate from '../validate';
 import { CognitoIdentityServiceProvider, DynamoDB } from 'aws-sdk';
 
 const createSuccessMessageByTier = {
@@ -24,20 +24,6 @@ const deleteSuccessMessageByTier = {
     [DappTiers.PROFESSIONAL]: "Dapp successfully deleted from DappHub.",
     [DappTiers.ENTERPRISE]: "Enterprise Dapp successfully deleted."
 };
-
-const logSuccess = (stage:string, res:any) => { console.log(`Successfully completed ${stage}; result: `, res) }
-const logErr = (stage:string, err:any) => { console.log(`Error on ${stage}: `, err) }
-
-async function callAndLog<ReturnType = any>(stage:string, promise:Promise<ReturnType>) {
-    try {
-        let res = await promise;
-        logSuccess(stage, res);
-        return res;
-    } catch (err) {
-        logErr(stage, err);
-        throw err;
-    }
-}
 
 async function apiCreate(rawDappName:string, body:any, callerEmail:string, cognitoUsername:string) {
     const methodName = ApiMethods.create;
@@ -168,55 +154,10 @@ async function apiList(callerEmail:string) {
     return responseBody;
 }
 
-function transformForDappHub(
-    {Abi, DappName, GuardianURL, Web3URL, ContractAddr}:DappApiRepresentation
-){
-    return {Abi, DappName, GuardianURL, Web3URL, ContractAddr};
-};
-
-async function apiView(rawDappName:string) {
-    let dappName = validate.cleanName(rawDappName);
-
-    let dbItem = await callAndLog('Get DynamoDB Item', dynamoDB.getItem(dappName));
-
-    let apiItem = dynamoDB.toApiRepresentation(dbItem.Item);
-
-    let itemExists = 'DappName' in apiItem;
-    let dappHubItem = 'DappName' in apiItem ? transformForDappHub(apiItem) : {};
-
-    let responseBody = {
-        exists: itemExists,
-        item: dappHubItem
-    };
-    return responseBody;
-}
-
-async function apiLogin(body:any) {
-    validate.loginBody(body);
-    const { username, password } = body;
-
-    let loginResult = await callAndLog('Logging into Cognito', cognito.login(username, password));
-
-    let responseBody;
-    if (loginResult.AuthenticationResult) {
-        responseBody = {
-            AuthToken : loginResult.AuthenticationResult.IdToken as string
-        }
-    } else {
-        responseBody = {
-            ChallengeName : loginResult.ChallengeName as string,
-            ChallengeParameters : loginResult.ChallengeParameters as CognitoIdentityServiceProvider.ChallengeParametersType
-        }
-    }
-    return responseBody;
-}
-
 export default {
     create : apiCreate,
     read : apiRead,
     update : apiUpdate,
     delete : apiDelete,
-    list : apiList,
-    view : apiView,
-    login : apiLogin
+    list : apiList
 }

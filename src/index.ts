@@ -4,11 +4,48 @@ import { ResponseOptions, HttpMethods, ApiMethods } from './common';
 import { Error422, Error409, Error404 } from './errors';
 import { APIGatewayEvent } from './gateway-event-type';
 
+exports.authHandler = async(event:APIGatewayEvent) => {
+    let responseOpts:ResponseOptions = {};
+
+    let apiMethod = event.pathParameters.proxy;
+    switch(event.httpMethod) {
+        case HttpMethods.OPTIONS:
+            // Auto-return success for CORS pre-flight OPTIONS requests
+            return successResponse({});
+        case HttpMethods.POST:
+            // Nothing to do here, defer apiMethod validation to lower switch
+            break;
+        default:
+            let err = {message: `Unrecognized auth HttpMethod ${event.httpMethod}`};
+            return errorResponse(err);
+    }
+
+    try {
+        let response;
+        const body = event.body ? JSON.parse(event.body) : {};
+        switch(apiMethod){
+            case ApiMethods.login:
+                response = await api.auth.login(body);
+                break;
+            case ApiMethods.passwordReset:
+                response = await api.auth.passwordReset(body);
+                break;
+            default:
+                let err = {message: `Unrecognized auth ApiMethod ${apiMethod}`};
+                throw err;
+        }
+        return successResponse(response, responseOpts);
+    } catch (err) {
+
+    }
+}
+
 exports.publicHandler = async(event:APIGatewayEvent) => {
     console.log("request: " + JSON.stringify(event));
     let responseOpts:ResponseOptions = {};
 
     let method:ApiMethods;
+    let rawDappName = event.pathParameters.proxy;
     switch(event.httpMethod) {
         case HttpMethods.OPTIONS:
             // Auto-return success for CORS pre-flight OPTIONS requests
@@ -17,8 +54,13 @@ exports.publicHandler = async(event:APIGatewayEvent) => {
             method = ApiMethods.view;
             break;
         case HttpMethods.POST:
-            method = ApiMethods.login;
-            break;
+            if (rawDappName === 'login'){
+                method = ApiMethods.login;
+                break;
+            } else {
+                let err = { message : `Invalid call to /public/${rawDappName}.  HttpMethod POST can only be sent to the public API for /public/login.`}
+                return errorResponse(err);
+            }
         default:
             let err = {message: `Unrecognized public HttpMethod ${event.httpMethod}`};
             return errorResponse(err);
@@ -29,12 +71,8 @@ exports.publicHandler = async(event:APIGatewayEvent) => {
         switch(method) {
             case ApiMethods.view:
                 responseOpts.isRead = true;
-                let rawDappName = event.pathParameters.proxy;
-                response = await api.view(rawDappName);
+                response = await api.public.view(rawDappName);
                 break;
-            case ApiMethods.login:
-                let body = event.body ? JSON.parse(event.body) : {};
-                response = await api.login(body);
             default:
                 let err = {message: `Unrecognized public ApiMethod ${method}`};
                 throw err;
@@ -94,16 +132,16 @@ exports.privateHandler = async (event:APIGatewayEvent) => {
         switch(method) {
             case ApiMethods.create:
                 responseOpts.isCreate = true;
-                return api.create(rawDappName, body, callerEmail, cognitoUsername);
+                return api.private.create(rawDappName, body, callerEmail, cognitoUsername);
             case ApiMethods.update:
-                return api.update(rawDappName, body, callerEmail);
+                return api.private.update(rawDappName, body, callerEmail);
             case ApiMethods.delete:
-                return api.delete(rawDappName, body, callerEmail);
+                return api.private.delete(rawDappName, body, callerEmail);
             case ApiMethods.read:
                 responseOpts.isRead = true;
-                return api.read(rawDappName, callerEmail);
+                return api.private.read(rawDappName, callerEmail);
             case ApiMethods.list:
-                return api.list(callerEmail);
+                return api.private.list(callerEmail);
             default:
                 return Promise.reject({message: "Unrecognized private method name ".concat(method)});
         }

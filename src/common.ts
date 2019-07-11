@@ -28,7 +28,21 @@ export function addAwsPromiseRetries<ReturnType = any>(promiseGenerator:()=>Prom
         p = p.catch(err => err.retryable ? promiseGenerator() : Promise.reject(err))
              .catch(err => err.retryable ? rejectDelay<ReturnType>(err) : Promise.reject(err));
     }
-    return p as Promise<ReturnType>;
+    return p;
+}
+
+const logSuccess = (stage:string, res:any) => { console.log(`Successfully completed ${stage}; result: `, res) }
+const logErr = (stage:string, err:any) => { console.log(`Error on ${stage}: `, err) }
+
+export async function callAndLog<ReturnType = any>(stage:string, promise:Promise<ReturnType>) {
+    try {
+        let res = await promise;
+        logSuccess(stage, res);
+        return res;
+    } catch (err) {
+        logErr(stage, err);
+        throw err;
+    }
 }
 
 export interface ValidCreateBody {
@@ -78,5 +92,6 @@ export enum ApiMethods {
     create = 'create',
     update = 'update',
     delete = 'delete',
-    login  = 'login'
+    login  = 'login',
+    passwordReset = 'password-reset'
 }
