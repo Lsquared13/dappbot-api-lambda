@@ -3,6 +3,7 @@ import services from './services';
 const { cognito, dynamoDB } = services;
 import { assertParameterValid, assertOperationAllowed, assertDappFound, assertDappNameNotTaken, assertInternal, throwInternalValidationError } from './errors';
 import { DynamoDB, CognitoIdentityServiceProvider } from 'aws-sdk';
+import { LoginActions, PasswordResetActions } from './api/auth';
 
 const dappTierToLimitAttr = {
     [DappTiers.POC]: 'custom:num_dapps',
@@ -185,29 +186,33 @@ async function validateDeleteAllowed(dappName:string, callerEmail:string) {
 
 // LOGIN VALIDATION
 
-function validateBodyLogin(body:Object){
-    assertParameterValid(body.hasOwnProperty('username'), "login: required argument 'username' not found");
-    assertParameterValid(body.hasOwnProperty('password'), "login: required argument 'password' not found");
+function bodyHas(body:Object, propertyNames:string[]){
+    return propertyNames.every(name => body.hasOwnProperty(name))
 }
 
-function validateBodyConfirmNewPassword(body:Object){
-    assertParameterValid(body.hasOwnProperty('username'), "confirmNewPassword: required argument 'username' not found");
-    assertParameterValid(body.hasOwnProperty('newPassword'), "confirmNewPassword: required argument 'newPassword' not found");
-    assertParameterValid(body.hasOwnProperty('session'), "confirmNewPassword: required argument 'session' not found");
+function matchLoginBody(body:Object){
+    if (bodyHas(body, ['username', 'password'])) {
+        return LoginActions.Login;
+    } else if (bodyHas(body, ['username', 'newPassword', 'session'])) {
+        return LoginActions.ConfirmNewPassword;
+    } else if (bodyHas(body, ['username', 'mfaLoginCode', 'session'])) {
+        return LoginActions.ConfirmMFALogin;
+    } else if (bodyHas(body, ['session', 'mfaSetupCode'])) {
+        return LoginActions.ConfirmMFASetup;
+    } else {
+        return false;
+    }
 }
 
-function validateBodyConfirmMFA(body:Object){
-    assertParameterValid(body.hasOwnProperty('username'), "confirmMFA: required argument 'username' not found");
-    assertParameterValid(body.hasOwnProperty('code'), "confirmMFA: required argument 'code' not found");
-    assertParameterValid(body.hasOwnProperty('session'), "confirmMFA: required argument 'session' not found");
-}
-
-function validateBodyBeginForgotPassword(body:Object){
-
-}
-
-function validateBodyConfirmForgotPassword(body:Object){
-
+function matchPasswordResetBody(body:Object) {
+    // Confirm must go first b/c Begin args are a subset
+    if (bodyHas(body, ['username', 'passwordResetCode', 'newPassword'])) {
+        return PasswordResetActions.Confirm;
+    } else if (bodyHas(body, ['username'])) {
+        return PasswordResetActions.Begin;
+    } else {
+        return false;
+    }
 }
 
 // HELPER FUNCTIONS
@@ -240,10 +245,7 @@ export default {
     updateAllowed : validateUpdateAllowed,
     deleteBody : validateBodyDelete,
     deleteAllowed : validateDeleteAllowed,
-    loginBody : validateBodyLogin,
-    confirmNewPasswordBody : validateBodyConfirmNewPassword,
-    confirmMFABody : validateBodyConfirmMFA,
-    beginForgotPasswordBody : validateBodyBeginForgotPassword,
-    confirmForgotPasswordBody : validateBodyConfirmForgotPassword,
+    matchLoginBody : matchLoginBody,
+    matchPasswordResetBody : matchPasswordResetBody,
     cleanName : cleanDappName
 }

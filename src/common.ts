@@ -9,10 +9,12 @@ export function rejectDelay<SuccessType>(reason:string) {
 }
 
 /*
-Retries a promise returned by promiseGenerator up to maxRetries times as long as the error is retryable
+Retries a promise returned by promiseGenerator up to maxRetries times 
+as long as the error is retryable. Defaults to 5 retries.
+
 Based on https://stackoverflow.com/questions/38213668/promise-retry-design-patterns
 */
-export function addAwsPromiseRetries<ReturnType = any>(promiseGenerator:()=>Promise<ReturnType>, maxRetries:number) {
+export function addAwsPromiseRetries<ReturnType = any>(promiseGenerator:()=>Promise<ReturnType>, maxRetries:number = 5) {
     // Ensure we call promiseGenerator on the first iteration
     let p:Promise<ReturnType> = Promise.reject({retryable: true});
 

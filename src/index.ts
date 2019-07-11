@@ -35,8 +35,9 @@ exports.authHandler = async(event:APIGatewayEvent) => {
                 throw err;
         }
         return successResponse(response, responseOpts);
-    } catch (err) {
-
+    } catch (authErr) {
+        let err = {message : `${apiMethod} Error: ${authErr.toString()}`}
+        return errorResponse(err);
     }
 }
 
