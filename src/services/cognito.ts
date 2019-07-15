@@ -17,10 +17,9 @@ function promiseLogin(cognitoUsername:string, cognitoPassword:string){
             'USERNAME' : cognitoUsername,
             'PASSWORD' : cognitoPassword
         },
-        ClientId : cognitoClientId,
-        UserPoolId : cognitoUserPoolId
+        ClientId : cognitoClientId
     }
-    return addAwsPromiseRetries(() => cognito.adminInitiateAuth(params).promise())
+    return addAwsPromiseRetries(() => cognito.initiateAuth(params).promise())
 }
 
 function promiseConfirmNewPassword(userSession:string, username:string, newPassword:string) {

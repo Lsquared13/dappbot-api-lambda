@@ -1,11 +1,13 @@
 'use strict';
 import api from './api';
+import AuthApi from './api/auth';
 import { ResponseOptions, HttpMethods, ApiMethods } from './common';
 import { Error422, Error409, Error404 } from './errors';
 import { APIGatewayEvent } from './gateway-event-type';
 
 exports.authHandler = async(event:APIGatewayEvent) => {
     console.log("request: "+JSON.stringify(event));
+
     let responseOpts:ResponseOptions = {};
 
     let apiMethod = event.pathParameters.proxy;
@@ -37,7 +39,7 @@ exports.authHandler = async(event:APIGatewayEvent) => {
         }
         return successResponse(response, responseOpts);
     } catch (authErr) {
-        let err = {message : `${apiMethod} Error: ${authErr.toString()}`}
+        let err = { message : `${apiMethod} Error: ${authErr.toString()}` }
         return errorResponse(err);
     }
 }
