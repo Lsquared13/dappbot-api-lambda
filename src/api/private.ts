@@ -1,9 +1,9 @@
-import services from './services';
+import services from '../services';
 const { sqs, dynamoDB } = services; 
-import { DappApiRepresentation, DappTiers, ApiMethods } from './common';
-import validate from './validate';
-import { PutItemInputAttributeMap } from 'aws-sdk/clients/dynamodb';
-import { assertParameterValid } from './errors';
+import { DappApiRepresentation, DappTiers, ApiMethods, callAndLog } from '../common';
+import validate from '../validate';
+import { DynamoDB } from 'aws-sdk';
+import { assertParameterValid } from '../errors';
 
 const createSuccessMessageByTier = {
     [DappTiers.POC]: "Dapp generation successfully initialized!  Check your URL in about 5 minutes.",
@@ -25,20 +25,6 @@ const deleteSuccessMessageByTier = {
     [DappTiers.PROFESSIONAL]: "Dapp successfully deleted from DappHub.",
     [DappTiers.ENTERPRISE]: "Enterprise Dapp successfully deleted."
 };
-
-const logSuccess = (stage:string, res:any) => { console.log(`Successfully completed ${stage}; result: `, res) }
-const logErr = (stage:string, err:any) => { console.log(`Error on ${stage}: `, err) }
-
-async function callAndLog(stage:string, promise:Promise<any>) {
-    try {
-        let res = await promise;
-        logSuccess(stage, res);
-        return res;
-    } catch (err) {
-        logErr(stage, err);
-        throw err;
-    }
-}
 
 async function apiCreate(rawDappName:string, body:any, callerEmail:string, cognitoUsername:string) {
     const methodName = ApiMethods.create;
@@ -165,33 +151,10 @@ async function apiDelete(rawDappName:string, body:any, callerEmail:string) {
 
 async function apiList(callerEmail:string) {
     let ddbResponse = await callAndLog('List DynamoDB Items', dynamoDB.getByOwner(callerEmail));
-    let outputItems = ddbResponse.Items.map((item:PutItemInputAttributeMap) => dynamoDB.toApiRepresentation(item));
+    let outputItems = (ddbResponse.Items || []).map((item:DynamoDB.PutItemInputAttributeMap) => dynamoDB.toApiRepresentation(item));
     let responseBody = {
-        count: ddbResponse.Count,
+        count: outputItems.length,
         items: outputItems
-    };
-    return responseBody;
-}
-
-function transformForDappHub(
-    {Abi, DappName, GuardianURL, Web3URL, ContractAddr}:DappApiRepresentation
-){
-    return {Abi, DappName, GuardianURL, Web3URL, ContractAddr};
-};
-
-async function apiView(rawDappName:string) {
-    let dappName = validate.cleanName(rawDappName);
-
-    let dbItem = await callAndLog('Get DynamoDB Item', dynamoDB.getItem(dappName));
-
-    let apiItem = dynamoDB.toApiRepresentation(dbItem.Item);
-
-    let itemExists = 'DappName' in apiItem;
-    let dappHubItem = 'DappName' in apiItem ? transformForDappHub(apiItem) : {};
-
-    let responseBody = {
-        exists: itemExists,
-        item: dappHubItem
     };
     return responseBody;
 }
@@ -201,6 +164,5 @@ export default {
     read : apiRead,
     update : apiUpdate,
     delete : apiDelete,
-    list : apiList,
-    view : apiView
+    list : apiList
 }

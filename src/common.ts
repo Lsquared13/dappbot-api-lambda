@@ -1,20 +1,22 @@
 /*
 Returns a Promise that rejects with reason after msDelay milliseconds
 */
-export function rejectDelay(reason:string) {
+export function rejectDelay<SuccessType>(reason:string) {
     let msDelay = 700;
-    return new Promise(function(resolve, reject) {
+    return new Promise<SuccessType>(function(resolve, reject) {
         setTimeout(reject.bind(null, reason), msDelay); 
     });
 }
 
 /*
-Retries a promise returned by promiseGenerator up to maxRetries times as long as the error is retryable
+Retries a promise returned by promiseGenerator up to maxRetries times 
+as long as the error is retryable. Defaults to 5 retries.
+
 Based on https://stackoverflow.com/questions/38213668/promise-retry-design-patterns
 */
-export function addAwsPromiseRetries(promiseGenerator:()=>Promise<any>, maxRetries:number) {
+export function addAwsPromiseRetries<ReturnType = any>(promiseGenerator:()=>Promise<ReturnType>, maxRetries:number = 5) {
     // Ensure we call promiseGenerator on the first iteration
-    let p:Promise<any> = Promise.reject({retryable: true});
+    let p:Promise<ReturnType> = Promise.reject({retryable: true});
 
     /*
     Appends maxRetries number of retry and delay promises to an AWS promise, returning once a retry promise resolves.
@@ -26,9 +28,23 @@ export function addAwsPromiseRetries(promiseGenerator:()=>Promise<any>, maxRetri
     */
     for(var i=0; i<maxRetries; i++) {
         p = p.catch(err => err.retryable ? promiseGenerator() : Promise.reject(err))
-             .catch(err => err.retryable ? rejectDelay(err) : Promise.reject(err));
+             .catch(err => err.retryable ? rejectDelay<ReturnType>(err) : Promise.reject(err));
     }
     return p;
+}
+
+const logSuccess = (stage:string, res:any) => { console.log(`Successfully completed ${stage}; result: `, res) }
+const logErr = (stage:string, err:any) => { console.log(`Error on ${stage}: `, err) }
+
+export async function callAndLog<ReturnType = any>(stage:string, promise:Promise<ReturnType>) {
+    try {
+        let res = await promise;
+        logSuccess(stage, res);
+        return res;
+    } catch (err) {
+        logErr(stage, err);
+        throw err;
+    }
 }
 
 export interface ValidCreateBody {
@@ -77,6 +93,7 @@ export enum ApiMethods {
     list = 'list',
     create = 'create',
     update = 'update',
-    delete = 'delete'
-
+    delete = 'delete',
+    login  = 'login',
+    passwordReset = 'password-reset'
 }
