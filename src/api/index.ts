@@ -8,6 +8,4 @@ export const Api = {
   auth : AuthApi
 }
 
-console.log('Api at startup: ',Api);
-
 export default Api;

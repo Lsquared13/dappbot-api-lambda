@@ -1,5 +1,5 @@
 import { CognitoIdentityServiceProvider as CognitoTypes } from 'aws-sdk';
-import { callAndLog } from '../common';
+import { callAndLog, ApiMethods } from '../common';
 import services from '../services';
 import validate from '../validate';
 
@@ -9,13 +9,23 @@ function bodyMissing(body:Object, propertyNames:string[]){
   return propertyNames.filter(name => !body.hasOwnProperty(name));
 }
 
+export enum AuthParamNames {
+  Username = 'username',
+  Password = 'password',
+  NewPassword = 'newPassword',
+  Session = 'session',
+  MFALoginCode = 'mfaLoginCode',
+  MFASetupCode = 'mfaSetupCode',
+  PasswordResetCode = 'passwordResetCode'
+}
+
 interface MissingActionParameters {
   action : string
   parameters : string[]
 }
 
 interface PerCaseErrMsgArgs {
-  endpoint : string,
+  endpoint : ApiMethods,
   actionsMissing : MissingActionParameters[]
 }
 
@@ -53,10 +63,24 @@ async function buildChallengeResponseBody(authResult:AuthResult){
 }
 
 export enum LoginActions {
-  Login = 'login',
-  ConfirmNewPassword = 'confirmNewActions',
-  ConfirmMFALogin = 'confirmMFALogin',
-  ConfirmMFASetup = 'confirmMFASetup'
+  Login = 'LOGIN',
+  ConfirmNewPassword = 'CONFIRM_NEW_PASSWORD',
+  ConfirmMFALogin = 'CONFIRM_MFA_LOGIN',
+  ConfirmMFASetup = 'CONFIRM_MFA_SETUP'
+}
+
+export const LoginParams = {
+  Login : [AuthParamNames.Username, AuthParamNames.Password],
+  ConfirmNewPassword : [AuthParamNames.Username, AuthParamNames.Session, AuthParamNames.NewPassword],
+  ConfirmMFALogin : [AuthParamNames.Username, AuthParamNames.Session, AuthParamNames.MFALoginCode],
+  ConfirmMFASetup : [AuthParamNames.Session, AuthParamNames.MFASetupCode]
+}
+
+enum LoginExceptions {
+  NotConfirmed = 'UserNotConfirmedException',
+  ResetRequired = 'PasswordResetRequiredException',
+  NotAuthorized = 'NotAuthorizedException',
+  NotFound = 'UserNotFoundException'
 }
 
 async function apiLogin(body: any) {
@@ -74,16 +98,16 @@ async function apiLogin(body: any) {
 
         switch(err.code){
           // Full list of possible error codes at https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_InitiateAuth.html#API_InitiateAuth_Errors
-          case 'UserNotConfirmedException':
+          case LoginExceptions.NotConfirmed:
             await cognito.resendSignUpConfirmCode(body.username);
             throw new Error("Please finish confirming your account, we've resent your confirmation code.")
   
-          case 'PasswordResetRequiredException':
+          case LoginExceptions.ResetRequired:
             await cognito.beginForgotPassword(body.username);
             throw new Error("Please reset your password, we've emailed you a confirmation code.")
   
-          case 'NotAuthorizedException':
-          case 'UserNotFoundException':
+          case LoginExceptions.NotAuthorized:
+          case LoginExceptions.NotFound:
             throw new Error("We could not log you in with these credentials.");
   
           default:
@@ -122,12 +146,12 @@ async function apiLogin(body: any) {
 
     default:
       throw new Error(perCaseErrMsg({
-        endpoint : 'login',
+        endpoint : ApiMethods.login,
         actionsMissing : [
-          { action : 'login', parameters : bodyMissing(body, ['username', 'password']) },
-          { action : 'confirm new password', parameters : bodyMissing(body, ['username', 'session', 'newPassword']) },
-          { action : 'confirm an MFA login', parameters : bodyMissing(body, ['username', 'session', 'mfaLoginCode'])},
-          { action : 'confirm MFA setup', parameters : bodyMissing(body, ['session', 'mfaSetupCode']) }
+          { action : 'login', parameters : bodyMissing(body, LoginParams.Login) },
+          { action : 'confirm new password', parameters : bodyMissing(body, LoginParams.ConfirmNewPassword) },
+          { action : 'confirm an MFA login', parameters : bodyMissing(body, LoginParams.ConfirmMFALogin)},
+          { action : 'confirm MFA setup', parameters : bodyMissing(body, LoginParams.ConfirmMFASetup) }
         ]
       }))
   }
@@ -135,8 +159,19 @@ async function apiLogin(body: any) {
 }
 
 export enum PasswordResetActions {
-  Begin = 'beginPasswordReset',
-  Confirm = 'confirmPasswordReset'
+  Begin = 'BEGIN_PASSWORD_RESET',
+  Confirm = 'CONFIRM_PASSWORD_RESET'
+}
+
+export const PasswordResetParams = {
+  Begin : [AuthParamNames.Username],
+  Confirm : [AuthParamNames.Username, AuthParamNames.PasswordResetCode, AuthParamNames.NewPassword]
+}
+
+enum PasswordResetExceptions {
+  Expired = 'ExpiredCodeException',
+  InvalidPassword = 'InvalidPasswordException',
+  NotConfirmed = 'UserNotConfirmedException'
 }
 
 async function apiPasswordReset(body: any) {
@@ -151,12 +186,12 @@ async function apiPasswordReset(body: any) {
       } catch (err) {
         // Full list of potential error codes at: https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_ConfirmForgotPassword.html#API_ConfirmForgotPassword_Errors
         switch(err.code){
-          case 'ExpiredCodeException':
+          case PasswordResetExceptions.Expired:
             await callAndLog('Sending new password reset code to replace expired one', cognito.beginForgotPassword(username));
             throw new Error("Your password reset code expired, a new one has been sent.");
-          case 'InvalidPasswordException':
+          case PasswordResetExceptions.InvalidPassword:
             throw new Error("Your new password was not valid, please select another one.");
-          case 'UserNotConfirmedException':
+          case PasswordResetExceptions.NotConfirmed:
             await callAndLog('Resending account confirmation code', cognito.resendSignUpConfirmCode(username));
             throw new Error("Your account still has not been confirmed, we have resent your signup confirmation code.");
           default:
@@ -173,10 +208,10 @@ async function apiPasswordReset(body: any) {
 
     default:
       throw new Error(perCaseErrMsg({
-        endpoint : 'password-reset',
+        endpoint : ApiMethods.passwordReset,
         actionsMissing : [
-          { action : 'begin password reset', parameters : bodyMissing(body, ['username']) },
-          { action : 'confirm password reset', parameters : bodyMissing(body, ['username', 'passwordResetCode', 'newPassword']) }
+          { action : 'begin password reset', parameters : bodyMissing(body, PasswordResetParams.Begin) },
+          { action : 'confirm password reset', parameters : bodyMissing(body, PasswordResetParams.Confirm) }
         ]
       }))
   }

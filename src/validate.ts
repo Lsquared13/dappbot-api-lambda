@@ -3,7 +3,7 @@ import services from './services';
 const { cognito, dynamoDB } = services;
 import { assertParameterValid, assertOperationAllowed, assertDappFound, assertDappNameNotTaken, assertInternal, throwInternalValidationError } from './errors';
 import { DynamoDB, CognitoIdentityServiceProvider } from 'aws-sdk';
-import { LoginActions, PasswordResetActions } from './api/auth';
+import { LoginActions, PasswordResetActions, LoginParams, PasswordResetParams } from './api/auth';
 
 const dappTierToLimitAttr = {
     [DappTiers.POC]: 'custom:num_dapps',
@@ -191,13 +191,13 @@ function bodyHas(body:Object, propertyNames:string[]){
 }
 
 function matchLoginBody(body:Object){
-    if (bodyHas(body, ['username', 'password'])) {
+    if (bodyHas(body, LoginParams.Login)) {
         return LoginActions.Login;
-    } else if (bodyHas(body, ['username', 'newPassword', 'session'])) {
+    } else if (bodyHas(body, LoginParams.ConfirmNewPassword)) {
         return LoginActions.ConfirmNewPassword;
-    } else if (bodyHas(body, ['username', 'mfaLoginCode', 'session'])) {
+    } else if (bodyHas(body, LoginParams.ConfirmMFALogin)) {
         return LoginActions.ConfirmMFALogin;
-    } else if (bodyHas(body, ['session', 'mfaSetupCode'])) {
+    } else if (bodyHas(body, LoginParams.ConfirmMFASetup)) {
         return LoginActions.ConfirmMFASetup;
     } else {
         return false;
@@ -206,9 +206,9 @@ function matchLoginBody(body:Object){
 
 function matchPasswordResetBody(body:Object) {
     // Confirm must go first b/c Begin args are a subset
-    if (bodyHas(body, ['username', 'passwordResetCode', 'newPassword'])) {
+    if (bodyHas(body, PasswordResetParams.Confirm)) {
         return PasswordResetActions.Confirm;
-    } else if (bodyHas(body, ['username'])) {
+    } else if (bodyHas(body, PasswordResetParams.Begin)) {
         return PasswordResetActions.Begin;
     } else {
         return false;
