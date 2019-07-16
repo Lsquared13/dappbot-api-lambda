@@ -1,9 +1,7 @@
 import { CognitoIdentityServiceProvider as CognitoTypes } from 'aws-sdk';
 import { callAndLog, ApiMethods } from '../common';
-import services from '../services';
+import cognito, { CognitoChallengeNames } from '../services/cognito';
 import validate from '../validate';
-
-const { cognito } = services;
 
 function bodyMissing(body:Object, propertyNames:string[]){
   return propertyNames.filter(name => !body.hasOwnProperty(name));
@@ -50,7 +48,7 @@ async function buildChallengeResponseBody(authResult:AuthResult){
       ChallengeParameters: authResult.ChallengeParameters as CognitoTypes.ChallengeParametersType,
       Session: authResult.Session as CognitoTypes.SessionType
     }
-    if (authResult.ChallengeName === 'MFA_SETUP'){
+    if (authResult.ChallengeName === CognitoChallengeNames.MFASetup){
       try {
         const mfaSetup = await callAndLog("Beginning MFA setup", cognito.beginMFASetup(authResult.Session as string));
         responseBody.ChallengeParameters.mfaSetupCode = mfaSetup.SecretCode as string;

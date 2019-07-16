@@ -22,9 +22,15 @@ function promiseLogin(cognitoUsername:string, cognitoPassword:string){
     return addAwsPromiseRetries(() => cognito.initiateAuth(params).promise())
 }
 
+export enum CognitoChallengeNames {
+    NewPassword = 'NEW_PASSWORD_REQUIRED',
+    SMS_MFA = 'SMS_MFA',
+    MFASetup = 'MFA_SETUP'
+}
+
 function promiseConfirmNewPassword(userSession:string, username:string, newPassword:string) {
     let params = {
-        ChallengeName : 'NEW_PASSWORD_REQUIRED',
+        ChallengeName : CognitoChallengeNames.NewPassword,
         ClientId : cognitoClientId,
         Session : userSession,
         ChallengeResponses : {
@@ -37,7 +43,7 @@ function promiseConfirmNewPassword(userSession:string, username:string, newPassw
 
 function promiseConfirmMFALogin(userSession:string, username:string, code:string){
     let params = {
-        ChallengeName : 'SMS_MFA',
+        ChallengeName : CognitoChallengeNames.SMS_MFA,
         ClientId : cognitoClientId,
         Session : userSession,
         ChallengeResponses : {
