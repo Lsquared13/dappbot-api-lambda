@@ -10,6 +10,13 @@ function promiseAdminGetUser(cognitoUsername:string) {
     return addAwsPromiseRetries(() => cognito.adminGetUser(params).promise());
 }
 
+function promiseGetUser(accessToken:string) {
+    let params = {
+        AccessToken : accessToken
+    };
+    return addAwsPromiseRetries(() => cognito.getUser(params).promise());
+}
+
 function promiseLogin(cognitoUsername:string, cognitoPassword:string){
     let params = {
         AuthFlow : 'USER_PASSWORD_AUTH',
@@ -97,6 +104,7 @@ function promiseConfirmMFASetup(cognitoSession:string, mfaSetupCode:string){
 
 export default {
     getUser                 : promiseAdminGetUser,
+    getUserByToken          : promiseGetUser,
     login                   : promiseLogin,
     confirmNewPassword      : promiseConfirmNewPassword,
     confirmMFALogin         : promiseConfirmMFALogin,

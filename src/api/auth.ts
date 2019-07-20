@@ -39,8 +39,15 @@ type AuthResult = CognitoTypes.InitiateAuthResponse | CognitoTypes.RespondToAuth
 async function buildChallengeResponseBody(authResult:AuthResult){
   let responseBody;
   if (authResult.AuthenticationResult) {
+    const User = await cognito.getUserByToken(authResult.AuthenticationResult.AccessToken as string)
+    const ExpiresAt = new Date(Date.now() + 1000 * <number> authResult.AuthenticationResult.ExpiresIn).toISOString()
     responseBody = {
-      AuthToken: authResult.AuthenticationResult.IdToken as string
+      Authentication: authResult.AuthenticationResult.IdToken as string,
+      Refresh: {
+        Token : authResult.AuthenticationResult.RefreshToken as string,
+        ExpiresAt,
+      },
+      User
     }
   } else {
     responseBody = {
@@ -74,6 +81,8 @@ export const LoginParams = {
   ConfirmMFASetup : [AuthParamNames.Session, AuthParamNames.MFASetupCode]
 }
 
+// TODO: Add refresh token
+
 enum LoginExceptions {
   NotConfirmed = 'UserNotConfirmedException',
   ResetRequired = 'PasswordResetRequiredException',
@@ -86,7 +95,6 @@ async function apiLogin(body: any) {
 
     case LoginActions.Login:
       try {
-
         let loginResult = await callAndLog('Logging into Cognito', 
           cognito.login(body.username, body.password)
         );
@@ -114,6 +122,8 @@ async function apiLogin(body: any) {
         }
 
       }
+
+    // TODO: Add refresh token
     
     case LoginActions.ConfirmNewPassword:
       const newPassResult = await callAndLog('Confirming new password', 
