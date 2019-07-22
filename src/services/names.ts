@@ -1,5 +1,5 @@
 const uuidv4 = require('uuid/v4');
-const { dnsRoot } = require('../env');
+const { dnsRoot, dapphubDns } = require('../env');
 
 const s3BucketPrefix = "exim-dappbot-";
 
@@ -7,7 +7,11 @@ export function createS3BucketName() {
     return s3BucketPrefix.concat(uuidv4());
 }
 
-export function dnsNameFromDappName(dappName:string) {
+export function hubUrlFromDappName(dappName:string) {
+    return `${dapphubDns}/${dappName}`;
+}
+
+export function enterpriseDnsNameFromDappName(dappName:string) {
     return dappName.concat(dnsRoot);
 }
 
@@ -22,7 +26,8 @@ export function srcPipelineNameFromDappName(dappName:string) {
 
 export default {
     newS3BucketName : createS3BucketName,
-    dnsNameFromDappName : dnsNameFromDappName,
+    hubUrlFromDappName : hubUrlFromDappName,
+    enterpriseDnsNameFromDappName : enterpriseDnsNameFromDappName,
     pipelineNameFromDappName : pipelineNameFromDappName,
     srcPipelineNameFromDappName : srcPipelineNameFromDappName
 }

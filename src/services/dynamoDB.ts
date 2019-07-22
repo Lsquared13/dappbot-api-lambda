@@ -1,5 +1,5 @@
 import { PutItemInputAttributeMap, AttributeMap } from "aws-sdk/clients/dynamodb";
-import { createS3BucketName, dnsNameFromDappName, pipelineNameFromDappName, srcPipelineNameFromDappName } from './names'; 
+import { createS3BucketName, hubUrlFromDappName, enterpriseDnsNameFromDappName, pipelineNameFromDappName, srcPipelineNameFromDappName } from './names'; 
 import { addAwsPromiseRetries, DappApiRepresentation, DappTiers } from '../common'; 
 import { AWS, tableName } from '../env';
 import { assertDappItemValid } from '../errors';
@@ -91,10 +91,15 @@ function promisePutCreatingDappItem(dappName:string, ownerEmail:string, abi:stri
     let bucketName = createS3BucketName();
     let pipelineName = pipelineNameFromDappName(dappName);
     let srcPipelineName = srcPipelineNameFromDappName(dappName);
-    let dnsName = dnsNameFromDappName(dappName);
     let state = 'CREATING';
     let cloudfrontDistroId = null;
     let cloudfrontDns = null;
+    let dnsName;
+    if (dappTier === DappTiers.ENTERPRISE) {
+        dnsName = enterpriseDnsNameFromDappName(dappName);
+    } else {
+        dnsName = hubUrlFromDappName(dappName);
+    }
 
     let putItemParams = {
         TableName: tableName,
