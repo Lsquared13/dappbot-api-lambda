@@ -42,7 +42,7 @@ async function buildChallengeResponseBody(authResult:AuthResult){
     const User = await cognito.getUserByToken(authResult.AuthenticationResult.AccessToken as string)
     const ExpiresAt = new Date(Date.now() + 1000 * <number> authResult.AuthenticationResult.ExpiresIn).toISOString()
     responseBody = {
-      Authentication: authResult.AuthenticationResult.IdToken as string,
+      Authorization: authResult.AuthenticationResult.IdToken as string,
       Refresh: {
         Token : authResult.AuthenticationResult.RefreshToken as string,
         ExpiresAt,
