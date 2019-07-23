@@ -81,8 +81,6 @@ export const LoginParams = {
   ConfirmMFASetup : [AuthParamNames.Session, AuthParamNames.MFASetupCode]
 }
 
-// TODO: Add refresh token
-
 enum LoginExceptions {
   NotConfirmed = 'UserNotConfirmedException',
   ResetRequired = 'PasswordResetRequiredException',
@@ -122,8 +120,6 @@ async function apiLogin(body: any) {
         }
 
       }
-
-    // TODO: Add refresh token
     
     case LoginActions.ConfirmNewPassword:
       const newPassResult = await callAndLog('Confirming new password', 
