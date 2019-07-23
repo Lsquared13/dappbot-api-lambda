@@ -39,8 +39,15 @@ type AuthResult = CognitoTypes.InitiateAuthResponse | CognitoTypes.RespondToAuth
 async function buildChallengeResponseBody(authResult:AuthResult){
   let responseBody;
   if (authResult.AuthenticationResult) {
+    const User = await cognito.getUserByToken(authResult.AuthenticationResult.AccessToken as string)
+    const ExpiresAt = new Date(Date.now() + 1000 * <number> authResult.AuthenticationResult.ExpiresIn).toISOString()
     responseBody = {
-      AuthToken: authResult.AuthenticationResult.IdToken as string
+      Authorization: authResult.AuthenticationResult.IdToken as string,
+      Refresh: {
+        Token : authResult.AuthenticationResult.RefreshToken as string,
+        ExpiresAt,
+      },
+      User
     }
   } else {
     responseBody = {
@@ -86,7 +93,6 @@ async function apiLogin(body: any) {
 
     case LoginActions.Login:
       try {
-
         let loginResult = await callAndLog('Logging into Cognito', 
           cognito.login(body.username, body.password)
         );
