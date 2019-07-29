@@ -2,7 +2,7 @@
 import api from './api';
 import AuthApi from './api/auth';
 import { ResponseOptions, HttpMethods, ApiMethods } from './common';
-import { Error422, Error409, Error404 } from './errors';
+import { Error401, Error422, Error409, Error404 } from './errors';
 import { APIGatewayEvent } from './gateway-event-type';
 
 exports.authHandler = async(event:APIGatewayEvent) => {
@@ -39,8 +39,11 @@ exports.authHandler = async(event:APIGatewayEvent) => {
         }
         return successResponse(response, responseOpts);
     } catch (authErr) {
+        if (authErr instanceof Error401) {
+            responseOpts.errorResponseCode = 401;
+        }
         let err = { message : `${apiMethod} Error: ${authErr.toString()}` }
-        return errorResponse(err);
+        return errorResponse(err, responseOpts);
     }
 }
 

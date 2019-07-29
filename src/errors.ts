@@ -6,6 +6,9 @@ export class ValidationError {
         this.name = "ValidationError";
         this.message = message;
     }
+    toString():string {
+        return this.message;
+    }
 }
 
 export class Error422 extends ValidationError {
@@ -68,6 +71,53 @@ export class InternalValidationError extends ValidationError {
     constructor(message:string) {
         super(message);
         this.name = "InternalValidationError";
+    }
+}
+
+export class AuthError {
+    name: string
+    message: string
+    constructor(message:string) {
+        this.name = "AuthError";
+        this.message = message;
+    }
+    toString():string {
+        return this.message;
+    }
+}
+
+export class Error401 extends ValidationError {
+    constructor(message:string) {
+        super(message);
+        this.name = "Error401";
+    }
+}
+
+export class UnrecognizedCredentialsError extends Error401 {
+    constructor(message:string) {
+        super(message);
+        this.name = "UnrecognizedCredentialsError";
+    }
+}
+
+export class EmailNotConfirmedError extends Error401 {
+    constructor(message:string) {
+        super(message);
+        this.name = "EmailNotConfirmedError";
+    }
+}
+
+export class PasswordResetRequiredError extends Error401 {
+    constructor(message:string) {
+        super(message);
+        this.name = "PasswordResetRequiredError";
+    }
+}
+
+export class InvalidPasswordError extends Error401 {
+    constructor(message:string) {
+        super(message);
+        this.name = "InvalidPasswordError";
     }
 }
 

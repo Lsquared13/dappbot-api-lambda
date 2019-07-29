@@ -1,5 +1,6 @@
 import { CognitoIdentityServiceProvider as CognitoTypes } from 'aws-sdk';
 import { callAndLog, ApiMethods } from '../common';
+import { AuthError, UnrecognizedCredentialsError, EmailNotConfirmedError, PasswordResetRequiredError, InvalidPasswordError } from '../errors';
 import cognito, { CognitoChallengeNames } from '../services/cognito';
 import validate from '../validate';
 
@@ -104,19 +105,19 @@ async function apiLogin(body: any) {
           // Full list of possible error codes at https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_InitiateAuth.html#API_InitiateAuth_Errors
           case LoginExceptions.NotConfirmed:
             await cognito.resendSignUpConfirmCode(body.username);
-            throw new Error("Please finish confirming your account, we've resent your confirmation code.")
+            throw new EmailNotConfirmedError("Please finish confirming your account, we've resent your confirmation code.")
   
           case LoginExceptions.ResetRequired:
             await cognito.beginForgotPassword(body.username);
-            throw new Error("Please reset your password, we've emailed you a confirmation code.")
+            throw new PasswordResetRequiredError("Please reset your password, we've emailed you a confirmation code.")
   
           case LoginExceptions.NotAuthorized:
           case LoginExceptions.NotFound:
-            throw new Error("We could not log you in with these credentials.");
+            throw new UnrecognizedCredentialsError("We could not log you in with these credentials.");
   
           default:
             let msg = err.code ? `${err.code} - ${err.message}` : err.toString();
-            throw new Error(msg);
+            throw new AuthError(msg);
         }
 
       }
@@ -149,7 +150,7 @@ async function apiLogin(body: any) {
         return buildChallengeResponseBody(confirmMFALoginResult);
 
     default:
-      throw new Error(perCaseErrMsg({
+      throw new AuthError(perCaseErrMsg({
         endpoint : ApiMethods.login,
         actionsMissing : [
           { action : 'login', parameters : bodyMissing(body, LoginParams.Login) },
@@ -192,15 +193,15 @@ async function apiPasswordReset(body: any) {
         switch(err.code){
           case PasswordResetExceptions.Expired:
             await callAndLog('Sending new password reset code to replace expired one', cognito.beginForgotPassword(username));
-            throw new Error("Your password reset code expired, a new one has been sent.");
+            throw new PasswordResetRequiredError("Your password reset code expired, a new one has been sent.");
           case PasswordResetExceptions.InvalidPassword:
-            throw new Error("Your new password was not valid, please select another one.");
+            throw new InvalidPasswordError("Your new password was not valid, please select another one.");
           case PasswordResetExceptions.NotConfirmed:
             await callAndLog('Resending account confirmation code', cognito.resendSignUpConfirmCode(username));
-            throw new Error("Your account still has not been confirmed, we have resent your signup confirmation code.");
+            throw new EmailNotConfirmedError("Your account still has not been confirmed, we have resent your signup confirmation code.");
           default:
             let msg = err.code ? `${err.code} - ${err.message}` : err.toString();
-            throw new Error(msg);
+            throw new AuthError(msg);
         }
       }
 
@@ -211,7 +212,7 @@ async function apiPasswordReset(body: any) {
       }
 
     default:
-      throw new Error(perCaseErrMsg({
+      throw new AuthError(perCaseErrMsg({
         endpoint : ApiMethods.passwordReset,
         actionsMissing : [
           { action : 'begin password reset', parameters : bodyMissing(body, PasswordResetParams.Begin) },
