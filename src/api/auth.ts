@@ -11,6 +11,7 @@ function bodyMissing(body:Object, propertyNames:string[]){
 export enum AuthParamNames {
   Username = 'username',
   Password = 'password',
+  RefreshToken = 'refreshToken',
   NewPassword = 'newPassword',
   Session = 'session',
   MFALoginCode = 'mfaLoginCode',
@@ -70,6 +71,7 @@ async function buildChallengeResponseBody(authResult:AuthResult){
 
 export enum LoginActions {
   Login = 'LOGIN',
+  Refresh = 'REFRESH',
   ConfirmNewPassword = 'CONFIRM_NEW_PASSWORD',
   ConfirmMFALogin = 'CONFIRM_MFA_LOGIN',
   ConfirmMFASetup = 'CONFIRM_MFA_SETUP'
@@ -77,6 +79,7 @@ export enum LoginActions {
 
 export const LoginParams = {
   Login : [AuthParamNames.Username, AuthParamNames.Password],
+  Refresh : [AuthParamNames.RefreshToken],
   ConfirmNewPassword : [AuthParamNames.Username, AuthParamNames.Session, AuthParamNames.NewPassword],
   ConfirmMFALogin : [AuthParamNames.Username, AuthParamNames.Session, AuthParamNames.MFALoginCode],
   ConfirmMFASetup : [AuthParamNames.Session, AuthParamNames.MFASetupCode]
@@ -121,6 +124,58 @@ async function apiLogin(body: any) {
         }
 
       }
+
+    case LoginActions.Login:
+      try {
+        let loginResult = await callAndLog('Logging into Cognito', 
+          cognito.login(body.username, body.password)
+        );
+        return buildChallengeResponseBody(loginResult);
+
+      } catch (err) {
+
+        switch(err.code){
+          // Full list of possible error codes at https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_InitiateAuth.html#API_InitiateAuth_Errors
+          case LoginExceptions.NotConfirmed:
+            await cognito.resendSignUpConfirmCode(body.username);
+            throw new EmailNotConfirmedError("Please finish confirming your account, we've resent your confirmation code.")
+  
+          case LoginExceptions.ResetRequired:
+            await cognito.beginForgotPassword(body.username);
+            throw new PasswordResetRequiredError("Please reset your password, we've emailed you a confirmation code.")
+  
+          case LoginExceptions.NotAuthorized:
+          case LoginExceptions.NotFound:
+            throw new UnrecognizedCredentialsError("We could not log you in with these credentials.");
+  
+          default:
+            let msg = err.code ? `${err.code} - ${err.message}` : err.toString();
+            throw new AuthError(msg);
+        }
+
+      }
+    
+    case LoginActions.Refresh:
+      try {
+        let refreshResult = await callAndLog('Refreshing Cognito Token', 
+          cognito.refresh(body.refreshToken)
+        );
+        return buildChallengeResponseBody(refreshResult);
+  
+      } catch (err) {
+  
+        switch(err.code){
+          // Full list of possible error codes at https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_InitiateAuth.html#API_InitiateAuth_Errors
+          case LoginExceptions.NotAuthorized:
+          case LoginExceptions.NotFound:
+            throw new UnrecognizedCredentialsError("We could not refresh the provided token.");
+    
+          default:
+            let msg = err.code ? `${err.code} - ${err.message}` : err.toString();
+            throw new AuthError(msg);
+        }
+  
+      }
     
     case LoginActions.ConfirmNewPassword:
       const newPassResult = await callAndLog('Confirming new password', 
@@ -154,6 +209,7 @@ async function apiLogin(body: any) {
         endpoint : ApiMethods.login,
         actionsMissing : [
           { action : 'login', parameters : bodyMissing(body, LoginParams.Login) },
+          { action : 'refresh', parameters : bodyMissing(body, LoginParams.Refresh) },
           { action : 'confirm new password', parameters : bodyMissing(body, LoginParams.ConfirmNewPassword) },
           { action : 'confirm an MFA login', parameters : bodyMissing(body, LoginParams.ConfirmMFALogin)},
           { action : 'confirm MFA setup', parameters : bodyMissing(body, LoginParams.ConfirmMFASetup) }
