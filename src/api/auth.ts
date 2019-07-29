@@ -124,36 +124,6 @@ async function apiLogin(body: any) {
         }
 
       }
-
-    case LoginActions.Login:
-      try {
-        let loginResult = await callAndLog('Logging into Cognito', 
-          cognito.login(body.username, body.password)
-        );
-        return buildChallengeResponseBody(loginResult);
-
-      } catch (err) {
-
-        switch(err.code){
-          // Full list of possible error codes at https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_InitiateAuth.html#API_InitiateAuth_Errors
-          case LoginExceptions.NotConfirmed:
-            await cognito.resendSignUpConfirmCode(body.username);
-            throw new EmailNotConfirmedError("Please finish confirming your account, we've resent your confirmation code.")
-  
-          case LoginExceptions.ResetRequired:
-            await cognito.beginForgotPassword(body.username);
-            throw new PasswordResetRequiredError("Please reset your password, we've emailed you a confirmation code.")
-  
-          case LoginExceptions.NotAuthorized:
-          case LoginExceptions.NotFound:
-            throw new UnrecognizedCredentialsError("We could not log you in with these credentials.");
-  
-          default:
-            let msg = err.code ? `${err.code} - ${err.message}` : err.toString();
-            throw new AuthError(msg);
-        }
-
-      }
     
     case LoginActions.Refresh:
       try {
