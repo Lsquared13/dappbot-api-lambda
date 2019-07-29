@@ -193,6 +193,8 @@ function bodyHas(body:Object, propertyNames:string[]){
 function matchLoginBody(body:Object){
     if (bodyHas(body, LoginParams.Login)) {
         return LoginActions.Login;
+    } else if (bodyHas(body, LoginParams.Refresh)) {
+        return LoginActions.Refresh;
     } else if (bodyHas(body, LoginParams.ConfirmNewPassword)) {
         return LoginActions.ConfirmNewPassword;
     } else if (bodyHas(body, LoginParams.ConfirmMFALogin)) {
