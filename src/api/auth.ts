@@ -19,6 +19,26 @@ export enum AuthParamNames {
   PasswordResetCode = 'passwordResetCode'
 }
 
+type UserAttributeMap = { [Name:string] : string };
+
+interface DappBotUser {
+  Username: string
+  Email: string
+  UserAttributes: UserAttributeMap
+  /**
+   * Specifies the options for MFA (e.g., email or phone number).
+   */
+  MFAOptions?: CognitoTypes.MFAOptionListType;
+  /**
+   * The user's preferred MFA setting.
+   */
+  PreferredMfaSetting?: string;
+  /**
+   * The list of the user's MFA settings.
+   */
+  UserMFASettingList?: CognitoTypes.UserMFASettingListType;
+}
+
 interface MissingActionParameters {
   action : string
   parameters : string[]
@@ -41,15 +61,23 @@ type AuthResult = CognitoTypes.InitiateAuthResponse | CognitoTypes.RespondToAuth
 async function buildChallengeResponseBody(authResult:AuthResult){
   let responseBody;
   if (authResult.AuthenticationResult) {
-    const User = await cognito.getUserByToken(authResult.AuthenticationResult.AccessToken as string)
+    const CognitoUser = await cognito.getUserByToken(authResult.AuthenticationResult.AccessToken as string)
+    const { PreferredMfaSetting, UserMFASettingList, MFAOptions, UserAttributes } = CognitoUser;
+    const emailAttr = UserAttributes.find(({Name}) => Name === 'email') as CognitoTypes.AttributeType;
+    const User:DappBotUser = {
+      Username : CognitoUser.Username,
+      Email : emailAttr.Value as string,
+      UserAttributes : UserAttributes.reduce((attrObj, attr) => {
+        attrObj[attr.Name] = attr.Value || '';
+        return attrObj
+      }, {} as UserAttributeMap),
+      PreferredMfaSetting, UserMFASettingList, MFAOptions
+    }
     const ExpiresAt = new Date(Date.now() + 1000 * <number> authResult.AuthenticationResult.ExpiresIn).toISOString()
     responseBody = {
       Authorization: authResult.AuthenticationResult.IdToken as string,
-      Refresh: {
-        Token : authResult.AuthenticationResult.RefreshToken as string,
-        ExpiresAt,
-      },
-      User
+      RefreshToken: authResult.AuthenticationResult.RefreshToken as string,
+      User, ExpiresAt
     }
   } else {
     responseBody = {
