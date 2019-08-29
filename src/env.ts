@@ -17,5 +17,5 @@ NoConfigAWS.config.update({region: awsRegion});
 
 export const AWS = NoConfigAWS
 module.exports = { 
-    AWS, awsRegion, cognitoUserPoolId, cognitoClientId, dnsRoot, tableName, sqsQueue, dapphubDns
+    AWS, awsRegion, cognitoUserPoolId, cognitoClientId, dnsRoot, tableName, sqsQueue, dapphubDns, codeChanged
 };
