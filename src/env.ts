@@ -10,12 +10,12 @@ export const dnsRoot = process.env.DNS_ROOT as string;
 export const sqsQueue = process.env.SQS_QUEUE as string;
 export const tableName = process.env.DDB_TABLE as string;
 export const dapphubDns = process.env.DAPPHUB_DNS as string;
+export const codeChanged = "SUCCESS";
 
 
 NoConfigAWS.config.update({region: awsRegion});
 
-export const AWS = NoConfigAWS;
-
+export const AWS = NoConfigAWS
 module.exports = { 
     AWS, awsRegion, cognitoUserPoolId, cognitoClientId, dnsRoot, tableName, sqsQueue, dapphubDns
 };
