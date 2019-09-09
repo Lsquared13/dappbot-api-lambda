@@ -1,7 +1,10 @@
 'use strict';
+import { 
+    HttpMethods, ResponseOptions, successResponse, unexpectedErrorResponse, 
+    userErrorResponse, isHttpMethod
+} from '@eximchain/dappbot-types/spec/responses';
+import { Auth, Private, Public } from '@eximchain/dappbot-types/spec/methods';
 import api from './api';
-import AuthApi from './api/auth';
-import { ResponseOptions, HttpMethods, ApiMethods } from './common';
 import { Error401, Error422, Error409, Error404 } from './errors';
 import { APIGatewayEvent } from './gateway-event-type';
 
@@ -9,76 +12,68 @@ exports.authHandler = async(event:APIGatewayEvent) => {
     console.log("request: "+JSON.stringify(event));
 
     let responseOpts:ResponseOptions = {};
+    let method = event.httpMethod.toUpperCase();
+    if (!isHttpMethod(method)) return userErrorResponse({
+        message: `Unrecognized HttpMethod: ${method}`
+    })
 
-    let apiMethod = event.pathParameters.proxy;
-    switch(event.httpMethod) {
-        case HttpMethods.OPTIONS:
-            // Auto-return success for CORS pre-flight OPTIONS requests
-            return successResponse({});
-        case HttpMethods.POST:
-            // Nothing to do here, defer apiMethod validation to lower switch
-            break;
-        default:
-            let err = {message: `Unrecognized auth HttpMethod ${event.httpMethod}`};
-            return errorResponse(err);
-    }
+    if (method === 'OPTIONS') return successResponse(undefined);
+    if (method !== 'POST') return userErrorResponse({
+        message: `Unrecognized auth HttpMethod ${method}`
+    })
+
+    let endpoint = event.pathParameters.proxy;
+    let fullPath = `${event.requestContext.stage}/${event.path}`
 
     try {
-        let response;
         const body = event.body ? JSON.parse(event.body) : {};
-        switch(apiMethod){
-            case ApiMethods.login:
-                response = await api.auth.login(body);
-                break;
-            case ApiMethods.passwordReset:
-                response = await api.auth.passwordReset(body);
-                break;
+        switch(fullPath){
+            case Auth.Login.Path:
+                let loginResult:Auth.Login.Result = await api.auth.login(body);
+                return successResponse(loginResult)
+            case Auth.BeginPassReset.Path:
+                let resetResult:Auth.BeginPassReset.Result | Auth.ConfirmPassReset.Result  = await api.auth.passwordReset(body);
+                return successResponse(resetResult);
             default:
-                let err = {message: `Unrecognized auth ApiMethod ${apiMethod}`};
-                throw err;
+                return userErrorResponse({
+                    message: `Invalid endpoint on ${Auth.authBasePath}: ${event.pathParameters.proxy}`
+                });
         }
-        return successResponse(response, responseOpts);
     } catch (authErr) {
         if (authErr instanceof Error401) {
             responseOpts.errorResponseCode = 401;
         }
-        let err = { message : `${apiMethod} Error: ${authErr.toString()}` }
-        return errorResponse(err, responseOpts);
+        let err = { message : `${endpoint} Error: ${authErr.toString()}` }
+        return unexpectedErrorResponse(err, responseOpts);
     }
 }
 
 exports.publicHandler = async(event:APIGatewayEvent) => {
     console.log("request: " + JSON.stringify(event));
+
     let responseOpts:ResponseOptions = {};
-
-    let method:ApiMethods;
+    let method = event.httpMethod.toUpperCase();
+    if (!isHttpMethod(method)) return userErrorResponse({
+        message: `Unrecognized HttpMethod: ${method}`
+    })
     let rawDappName = event.pathParameters.proxy;
-    switch(event.httpMethod) {
-        case HttpMethods.OPTIONS:
-            // Auto-return success for CORS pre-flight OPTIONS requests
-            return successResponse({});
-        case HttpMethods.GET:
-            method = ApiMethods.view;
-            break;
-        default:
-            let err = {message: `Unrecognized public HttpMethod ${event.httpMethod}`};
-            return errorResponse(err);
-    }
 
-    try {
-        let response;
-        switch(method) {
-            case ApiMethods.view:
+    switch(method) {
+        case 'OPTIONS':
+            // Auto-return success for CORS pre-flight OPTIONS requests
+            return successResponse(undefined);
+        case Public.ViewDapp.HTTP:
+            try {
                 responseOpts.isRead = true;
-                response = await api.public.view(rawDappName);
-                break;
-            default:
-                let err = {message: `Unrecognized public ApiMethod ${method}`};
-                throw err;
-        }
-        return successResponse(response, responseOpts);
-    } catch (err) {
-        return errorResponse(err, responseOpts);
+                let viewResult:Public.ViewDapp.Result = await api.public.view(rawDappName);
+                return successResponse(viewResult, responseOpts);
+            } catch (err) {
+                return unexpectedErrorResponse(err);
+            }
+        default:
+            return userErrorResponse({
+                message: `Unrecognized public HttpMethod ${event.httpMethod}`
+            });
     }
 }
 
@@ -86,68 +81,51 @@ exports.privateHandler = async (event:APIGatewayEvent) => {
     console.log("request: " + JSON.stringify(event));
     let responseOpts:ResponseOptions = {};
 
-    let rootRequest = true;
-    let rawDappName = '';
-    if (event.pathParameters) {
-        rawDappName = event.pathParameters.proxy;
-        rootRequest = false;
-    }
-    let method:ApiMethods;
-    switch(event.httpMethod) {
-        case HttpMethods.OPTIONS:
-            // Auto-return success for CORS pre-flight OPTIONS requests
-            return successResponse({});
-        case HttpMethods.GET:
-            if (rootRequest) {
-                method = ApiMethods.list;
-            } else {
-                method = ApiMethods.read;
-            }
-            break;
-        case HttpMethods.POST:
-            method = ApiMethods.create;
-            break;
-        case HttpMethods.PUT:
-            method = ApiMethods.update;
-            break;
-        case HttpMethods.DELETE:
-            method = ApiMethods.delete;
-            break;
-        default:
-            let err = {message: `Unrecognized HTTP Method ${event.httpMethod}`};
-            return errorResponse(err, responseOpts);
-    }
-
     // Unpack Data from the event
-    let body;
-    if (event.body) {
-        body = JSON.parse(event.body);
-    }
+    let method = event.httpMethod.toUpperCase();
+    if (!isHttpMethod(method)) return userErrorResponse({
+        message: `Unrecognized HttpMethod: ${method}`
+    })
+    let body = JSON.parse(event.body || '');
     let cognitoUsername = event.requestContext.authorizer.claims["cognito:username"];
     let callerEmail = event.requestContext.authorizer.claims.email;
+    let hasDappName = event.pathParameters;
+    let rawDappName = hasDappName ? event.pathParameters.proxy : '';
 
-    // Execute the request
-    let responsePromise = (async function(method:ApiMethods) {
-        switch(method) {
-            case ApiMethods.create:
+    // Build the request
+    let resPromise = (async function () {
+        switch (event.httpMethod.toUpperCase() as HttpMethods.ANY) {
+            case 'OPTIONS':
+                // Auto-return success for CORS pre-flight OPTIONS requests
+                return null;
+            case Private.ReadDapp.HTTP:
+                if (hasDappName) {
+                    responseOpts.isRead = true;
+                    return await api.private.read(rawDappName, callerEmail) as Private.ReadDapp.Result;
+                } else {
+                    return await api.private.list(callerEmail) as Private.ListDapps.Result;
+                }
+            case Private.CreateDapp.HTTP:
                 responseOpts.isCreate = true;
-                return api.private.create(rawDappName, body, callerEmail, cognitoUsername);
-            case ApiMethods.update:
-                return api.private.update(rawDappName, body, callerEmail);
-            case ApiMethods.delete:
-                return api.private.delete(rawDappName, body, callerEmail);
-            case ApiMethods.read:
-                responseOpts.isRead = true;
-                return api.private.read(rawDappName, callerEmail);
-            case ApiMethods.list:
-                return api.private.list(callerEmail);
+                return await api.private.create(
+                    rawDappName, body, callerEmail, cognitoUsername
+                ) as Private.CreateDapp.Result;
+            case Private.UpdateDapp.HTTP:
+                return await api.private.update(
+                    rawDappName, body, callerEmail
+                ) as Private.UpdateDapp.Result;
+            case Private.DeleteDapp.HTTP:
+                return await api.private.delete(
+                    rawDappName, body, callerEmail
+                ) as Private.DeleteDapp.Result;
             default:
-                return Promise.reject({message: "Unrecognized private method name ".concat(method)});
+                let err = { message: `Unrecognized HTTP Method ${event.httpMethod}` };
+                return userErrorResponse(err, responseOpts);
         }
-    })(method);
+    })()
 
     try {
-        let responseBody = await responsePromise;
+        let responseBody = await resPromise;
         return successResponse(responseBody, responseOpts);
     } catch (err) {
         if (err instanceof Error422) {
@@ -157,59 +135,7 @@ exports.privateHandler = async (event:APIGatewayEvent) => {
         } else if (err instanceof Error404) {
             responseOpts.errorResponseCode = 404;
         }
-        return errorResponse(err, responseOpts);
+        return unexpectedErrorResponse(err, responseOpts);
     }
-};
-
-// FUNCTIONS FOR MARSHALLING RESPONSES
-
-function response(body:any, opts:ResponseOptions) {
-    let responseCode = 200;
-    // Override response code based on opts
-    if (opts.isErr) {
-        if (opts.errorResponseCode) {
-            responseCode = opts.errorResponseCode;
-        } else {
-            responseCode = 500;
-        }
-    } else if (opts.isCreate) {
-        responseCode = 201;
-    } else if (opts.isRead) {
-        if (body.hasOwnProperty("exists") && !body.exists) {
-            // Dapp Not Found
-            // This looks like a success response but uses error code 404
-            responseCode = 404;
-        }
-    }
-
-    let responseHeaders = {
-        'Content-Type': 'application/json', 
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Authorization,Content-Type'
-    };
     
-
-    let dataField = opts.isErr ? {} : body;
-    let errField = opts.isErr ? body : null;
-    let responseBody = {
-        data: dataField,
-        err: errField
-    };
-    return {
-        statusCode: responseCode,
-        headers: responseHeaders,
-        body: JSON.stringify(responseBody)
-    }
-}
-
-function successResponse(body:any, opts:ResponseOptions={isCreate: false}) {
-    let successOpt = {isErr: false};
-    let callOpts = {...opts, ...successOpt};
-    return response(body, callOpts);
-}
-
-function errorResponse(body:any, opts:ResponseOptions={isCreate: false}) {
-    let errorOpt = {isErr: true};
-    let callOpts = {...opts, ...errorOpt};
-    return response(body, callOpts);
-}
+};
