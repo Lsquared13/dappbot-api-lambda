@@ -86,7 +86,7 @@ exports.privateHandler = async (event:APIGatewayEvent) => {
     if (!isHttpMethod(method)) return userErrorResponse({
         message: `Unrecognized HttpMethod: ${method}`
     })
-    let body = JSON.parse(event.body || '');
+    let body = event.body ? JSON.parse(event.body) : {};
     let cognitoUsername = event.requestContext.authorizer.claims["cognito:username"];
     let callerEmail = event.requestContext.authorizer.claims.email;
     let hasDappName = event.pathParameters;
