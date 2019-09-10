@@ -1,36 +1,46 @@
+import { 
+    CreateDapp, ReadDapp, UpdateDapp, DeleteDapp, ListDapps 
+} from '@eximchain/dappbot-types/spec/methods/private';
+import {
+    typeValidationErrMsg
+} from '@eximchain/dappbot-types/spec/responses';
+import Dapp from '@eximchain/dappbot-types/spec/dapp';
 import services from '../services';
 const { sqs, dynamoDB } = services; 
-import { DappApiRepresentation, DappTiers, ApiMethods, callAndLog } from '../common';
+import { callAndLog } from '../common';
 import validate from '../validate';
 import { DynamoDB } from 'aws-sdk';
-import { assertParameterValid } from '../errors';
+import { assertParameterValid, ValidationError } from '../errors';
 
 const createSuccessMessageByTier = {
-    [DappTiers.POC]: "Dapp generation successfully initialized!  Check your URL in about 5 minutes.",
-    [DappTiers.STANDARD]: "Dapp successfully added to DappHub!",
-    [DappTiers.PROFESSIONAL]: "Dapp successfully added to DappHub!",
-    [DappTiers.ENTERPRISE]: "Enterprise Dapp build successfully initialized!"
+    [Dapp.Tiers.Standard]: "Dapp successfully added to DappHub!",
+    [Dapp.Tiers.Professional]: "Dapp successfully added to DappHub!",
+    [Dapp.Tiers.Enterprise]: "Enterprise Dapp build successfully initialized!"
 };
 
 const updateSuccessMessageByTier = {
-    [DappTiers.POC]: "Your Dapp was successfully updated! Allow 5 minutes for rebuild, then check your URL.",
-    [DappTiers.STANDARD]: "Dapp successfully updated!",
-    [DappTiers.PROFESSIONAL]: "Dapp successfully updated!",
-    [DappTiers.ENTERPRISE]: "Enterprise Dapp successfully updated! Source code build now in progress."
+    [Dapp.Tiers.Standard]: "Dapp successfully updated!",
+    [Dapp.Tiers.Professional]: "Dapp successfully updated!",
+    [Dapp.Tiers.Enterprise]: "Enterprise Dapp successfully updated! Source code build now in progress."
 };
 
 const deleteSuccessMessageByTier = {
-    [DappTiers.POC]: "Your Dapp was successfully deleted.",
-    [DappTiers.STANDARD]: "Dapp successfully deleted from DappHub.",
-    [DappTiers.PROFESSIONAL]: "Dapp successfully deleted from DappHub.",
-    [DappTiers.ENTERPRISE]: "Enterprise Dapp successfully deleted."
+    [Dapp.Tiers.Standard]: "Dapp successfully deleted from DappHub.",
+    [Dapp.Tiers.Professional]: "Dapp successfully deleted from DappHub.",
+    [Dapp.Tiers.Enterprise]: "Enterprise Dapp successfully deleted."
 };
 
-async function apiCreate(rawDappName:string, body:any, callerEmail:string, cognitoUsername:string) {
-    const methodName = ApiMethods.create;
-    validate.createBody(body);
+async function apiCreate(rawDappName:string, body:any, callerEmail:string, cognitoUsername:string):Promise<CreateDapp.Result> {
+    const methodName = Dapp.Operations.CREATE;
+    if (!CreateDapp.isArgs(body)) {
+        throw new Error([
+            'Your body is missing some of the required arguments to create a Dapp.',
+            'Please also include:\n',
+            ...typeValidationErrMsg(body, CreateDapp.newArgs())
+        ].join('\n'))
+    }
 
-    let dappName = validate.cleanName(rawDappName);
+    let dappName = Dapp.cleanName(rawDappName);
     let abi = body.Abi;
     let addr = body.ContractAddr;
     let web3URL = body.Web3URL;
@@ -38,14 +48,17 @@ async function apiCreate(rawDappName:string, body:any, callerEmail:string, cogni
     let dappTier = body.Tier;
     let targetRepoName = null;
     let targetRepoOwner = null;
-    if (dappTier === DappTiers.ENTERPRISE) {
-        targetRepoName = body.TargetRepoName;
-        targetRepoOwner = body.TargetRepoOwner;
+    if (dappTier === Dapp.Tiers.Enterprise) {
+        // The typeguard up top ensures that these values won't be 
+        // null for enterprise dapps, but that's a little bit 
+        // beyond Typescript.
+        targetRepoName = body.TargetRepoName || targetRepoName;
+        targetRepoOwner = body.TargetRepoOwner || targetRepoOwner;
     }
 
     // Disable Unimplemented Tiers
     // TODO: Remove when all tiers are implemented
-    assertParameterValid(dappTier === DappTiers.STANDARD, `Dapp Tier '${dappTier}' is not available.`);
+    assertParameterValid(dappTier === Dapp.Tiers.Standard, `Dapp Tier '${dappTier}' is not available.`);
     
     await validate.createAllowed(dappName, cognitoUsername, callerEmail, dappTier);
 
@@ -58,38 +71,42 @@ async function apiCreate(rawDappName:string, body:any, callerEmail:string, cogni
     await callAndLog('Send SQS Message', sqs.sendMessage(methodName, JSON.stringify(sqsMessageBody)));
 
     let responseBody = {
-        message: createSuccessMessageByTier[dappTier as DappTiers]
+        message: createSuccessMessageByTier[dappTier as Dapp.Tiers]
     };
     return responseBody;
 }
 
-async function apiRead(rawDappName:string, callerEmail:string) {
-    let dappName = validate.cleanName(rawDappName);
+async function apiRead(rawDappName:string, callerEmail:string):Promise<ReadDapp.Result> {
+    let dappName = Dapp.cleanName(rawDappName);
 
     let dbItem = await callAndLog('Get DynamoDB Item', dynamoDB.getItem(dappName));
 
-    let outputItem;
-    try {
-        await validate.readAllowed(dbItem, callerEmail);
-        outputItem = dynamoDB.toApiRepresentation(dbItem.Item);
-    } catch (err) {
-        console.log("Read permission denied. Returning empty object.", err);
-        outputItem = {};
+    if (!dbItem.Item) return {
+        exists : false,
+        item : null
     }
 
-    let itemExists = !!(outputItem as DappApiRepresentation).DappName;
-    let responseBody = {
-        exists: itemExists,
-        item: outputItem
-    };
-    return responseBody;
+    try {
+        await validate.readAllowed(dbItem, callerEmail);
+        return {
+            exists : true,
+            item : dynamoDB.toApiRepresentation(dbItem.Item)
+        }
+    } catch (err) {
+        console.log("Read permission denied. Returning empty object.", err);
+        return {
+            exists : false,
+            item : null
+        }
+    }
 }
 
-async function apiUpdate(rawDappName:string, body:any, callerEmail:string) {
-    const methodName = ApiMethods.update;
-    validate.updateBody(body);
+async function apiUpdate(rawDappName:string, body:any, callerEmail:string):Promise<UpdateDapp.Result> {
+    const methodName = Dapp.Operations.UPDATE;
+    if (!UpdateDapp.isArgs(body)) throw new ValidationError("Incorrect args, make better msg")
 
-    let dappName = validate.cleanName(rawDappName);
+
+    let dappName = Dapp.cleanName(rawDappName);
     // These values may or may not be defined
     let abi = body.Abi;
     let addr = body.ContractAddr;
@@ -121,16 +138,16 @@ async function apiUpdate(rawDappName:string, body:any, callerEmail:string) {
     await callAndLog('Send SQS Message', sqs.sendMessage(methodName, JSON.stringify(sqsMessageBody)));
 
     let responseBody = {
-        message: updateSuccessMessageByTier[dappTier as DappTiers]
+        message: updateSuccessMessageByTier[dappTier as Dapp.Tiers]
     };
     return responseBody;
 }
 
-async function apiDelete(rawDappName:string, body:any, callerEmail:string) {
-    const methodName = ApiMethods.delete;
+async function apiDelete(rawDappName:string, body:any, callerEmail:string):Promise<DeleteDapp.Result> {
+    const methodName = Dapp.Operations.DELETE;
     validate.deleteBody(body);
 
-    let dappName = validate.cleanName(rawDappName);
+    let dappName = Dapp.cleanName(rawDappName);
 
     let dbItem = await validate.deleteAllowed(dappName, callerEmail);
     let dappTier = dbItem.Tier.S;
@@ -144,12 +161,12 @@ async function apiDelete(rawDappName:string, body:any, callerEmail:string) {
     await callAndLog('Send SQS Message', sqs.sendMessage(methodName, JSON.stringify(sqsMessageBody)));
 
     let responseBody = {
-        message: deleteSuccessMessageByTier[dappTier as DappTiers]
+        message: deleteSuccessMessageByTier[dappTier as Dapp.Tiers]
     };
     return responseBody;
 }
 
-async function apiList(callerEmail:string) {
+async function apiList(callerEmail:string):Promise<ListDapps.Result> {
     let ddbResponse = await callAndLog('List DynamoDB Items', dynamoDB.getByOwner(callerEmail));
     let outputItems = (ddbResponse.Items || []).map((item:DynamoDB.PutItemInputAttributeMap) => dynamoDB.toApiRepresentation(item));
     let responseBody = {

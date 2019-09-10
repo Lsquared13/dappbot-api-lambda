@@ -1,8 +1,17 @@
 import { CognitoIdentityServiceProvider as CognitoTypes } from 'aws-sdk';
-import { callAndLog, ApiMethods } from '../common';
-import { AuthError, UnrecognizedCredentialsError, EmailNotConfirmedError, PasswordResetRequiredError, InvalidPasswordError } from '../errors';
+import { 
+  Login, BeginPassReset, ConfirmPassReset, Refresh, NewPassChallenge
+} from '@eximchain/dappbot-types/spec/methods/auth';
+import { typeValidationErrMsg } from '@eximchain/dappbot-types/spec/responses';
+import { 
+  newUserAttributes, UserData, AuthData, Challenges
+} from '@eximchain/dappbot-types/spec/user';
+import { callAndLog } from '../common';
+import { 
+  AuthError, UnrecognizedCredentialsError, EmailNotConfirmedError, 
+  PasswordResetRequiredError, InvalidPasswordError
+ } from '../errors';
 import cognito, { CognitoChallengeNames } from '../services/cognito';
-import validate from '../validate';
 
 function bodyMissing(body:Object, propertyNames:string[]){
   return propertyNames.filter(name => !body.hasOwnProperty(name));
@@ -19,58 +28,45 @@ export enum AuthParamNames {
   PasswordResetCode = 'passwordResetCode'
 }
 
-type UserAttributeMap = { [Name:string] : string };
-
-interface DappBotUser {
-  Username: string
-  Email: string
-  UserAttributes: UserAttributeMap
-  /**
-   * Specifies the options for MFA (e.g., email or phone number).
-   */
-  MFAOptions?: CognitoTypes.MFAOptionListType;
-  /**
-   * The user's preferred MFA setting.
-   */
-  PreferredMfaSetting?: string;
-  /**
-   * The list of the user's MFA settings.
-   */
-  UserMFASettingList?: CognitoTypes.UserMFASettingListType;
-}
-
 interface MissingActionParameters {
   action : string
-  parameters : string[]
+  correctShape : object
 }
 
 interface PerCaseErrMsgArgs {
-  endpoint : ApiMethods,
+  endpoint : string,
   actionsMissing : MissingActionParameters[]
+  incorrectShape : Object
 }
 
-function perCaseErrMsg({ endpoint, actionsMissing }:PerCaseErrMsgArgs){
+function perCaseErrMsg({ endpoint, actionsMissing, incorrectShape }:PerCaseErrMsgArgs){
+  function caseErrMsg(missing:MissingActionParameters, incorrect:object) {
+    return [
+      `If you want to ${missing.action}, then also provide:`,
+      ...typeValidationErrMsg(incorrect, missing.correctShape)
+    ].join('\n')
+  }
   return [
-    `Your request body did not match any options for ${endpoint}:\n`,
-    ...actionsMissing.map(missing => `- If you want to ${missing.action}, then also provide ${missing.parameters.join(', ')}.`)
-  ].join('\n')
+    `Your request body did not match any options for ${endpoint}:\n\n`,
+    ...actionsMissing.map(missing => caseErrMsg(missing, incorrectShape))
+  ].join('\n\n')
 }
 
 type AuthResult = CognitoTypes.InitiateAuthResponse | CognitoTypes.RespondToAuthChallengeResponse;
 
 async function buildChallengeResponseBody(authResult:AuthResult){
-  let responseBody;
+  let responseBody:AuthData | Challenges.Data;
   if (authResult.AuthenticationResult) {
     const CognitoUser = await cognito.getUserByToken(authResult.AuthenticationResult.AccessToken as string)
     const { PreferredMfaSetting, UserMFASettingList, MFAOptions, UserAttributes } = CognitoUser;
     const emailAttr = UserAttributes.find(({Name}) => Name === 'email') as CognitoTypes.AttributeType;
-    const User:DappBotUser = {
+    const User:UserData = {
       Username : CognitoUser.Username,
       Email : emailAttr.Value as string,
       UserAttributes : UserAttributes.reduce((attrObj, attr) => {
         attrObj[attr.Name] = attr.Value || '';
         return attrObj
-      }, {} as UserAttributeMap),
+      }, newUserAttributes()),
       PreferredMfaSetting, UserMFASettingList, MFAOptions
     }
     const ExpiresAt = new Date(Date.now() + 1000 * <number> authResult.AuthenticationResult.ExpiresIn).toISOString()
@@ -81,7 +77,7 @@ async function buildChallengeResponseBody(authResult:AuthResult){
     }
   } else {
     responseBody = {
-      ChallengeName: authResult.ChallengeName as string,
+      ChallengeName: authResult.ChallengeName as Challenges.Types,
       ChallengeParameters: authResult.ChallengeParameters as CognitoTypes.ChallengeParametersType,
       Session: authResult.Session as CognitoTypes.SessionType
     }
@@ -120,100 +116,99 @@ enum LoginExceptions {
   NotFound = 'UserNotFoundException'
 }
 
-async function apiLogin(body: any) {
-  switch(validate.matchLoginBody(body)) {
-
-    case LoginActions.Login:
-      try {
-        let loginResult = await callAndLog('Logging into Cognito', 
-          cognito.login(body.username, body.password)
-        );
-        return buildChallengeResponseBody(loginResult);
-
-      } catch (err) {
-
-        switch(err.code){
-          // Full list of possible error codes at https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_InitiateAuth.html#API_InitiateAuth_Errors
-          case LoginExceptions.NotConfirmed:
-            await cognito.resendSignUpConfirmCode(body.username);
-            throw new EmailNotConfirmedError("Please finish confirming your account, we've resent your confirmation code.")
-  
-          case LoginExceptions.ResetRequired:
-            await cognito.beginForgotPassword(body.username);
-            throw new PasswordResetRequiredError("Please reset your password, we've emailed you a confirmation code.")
-  
-          case LoginExceptions.NotAuthorized:
-          case LoginExceptions.NotFound:
-            throw new UnrecognizedCredentialsError("We could not log you in with these credentials.");
-  
-          default:
-            let msg = err.code ? `${err.code} - ${err.message}` : err.toString();
-            throw new AuthError(msg);
-        }
-
-      }
-    
-    case LoginActions.Refresh:
-      try {
-        let refreshResult = await callAndLog('Refreshing Cognito Token', 
-          cognito.refresh(body.refreshToken)
-        );
-        return buildChallengeResponseBody(refreshResult);
-  
-      } catch (err) {
-  
-        switch(err.code){
-          // Full list of possible error codes at https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_InitiateAuth.html#API_InitiateAuth_Errors
-          case LoginExceptions.NotAuthorized:
-          case LoginExceptions.NotFound:
-            throw new UnrecognizedCredentialsError("We could not refresh the provided token.");
-    
-          default:
-            let msg = err.code ? `${err.code} - ${err.message}` : err.toString();
-            throw new AuthError(msg);
-        }
-  
-      }
-    
-    case LoginActions.ConfirmNewPassword:
-      const newPassResult = await callAndLog('Confirming new password', 
-        cognito.confirmNewPassword(body.session, body.username, body.newPassword)
+async function apiLogin(body: any):Promise<Login.Result> {
+  if (Login.isArgs(body)) {
+    try {
+      let loginResult = await callAndLog('Logging into Cognito', 
+        cognito.login(body.username, body.password)
       );
-      return buildChallengeResponseBody(newPassResult);
-
-    case LoginActions.ConfirmMFASetup:
-      const confirmMFASetupResult = await callAndLog('Confirming MFA Setup', 
-        cognito.confirmMFASetup(body.session, body.mfaSetupCode)
-      );
-      if (confirmMFASetupResult.Status === 'SUCCESS') {
-        return {
-          message : 'MFA was successfully set up, you can now log in.'
-        }
-      } else {
-        return {
-          message : 'MFA setup was unsuccessful. Please use session to try again.',
-          session : confirmMFASetupResult.Session
-        }
+      return buildChallengeResponseBody(loginResult);
+    } catch (err) {
+      switch(err.code){
+        // Full list of possible error codes at https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_InitiateAuth.html#API_InitiateAuth_Errors
+        case LoginExceptions.NotConfirmed:
+          await cognito.resendSignUpConfirmCode(body.username);
+          throw new EmailNotConfirmedError("Please finish confirming your account, we've resent your confirmation code.")
+  
+        case LoginExceptions.ResetRequired:
+          await cognito.beginForgotPassword(body.username);
+          throw new PasswordResetRequiredError("Please reset your password, we've emailed you a confirmation code.")
+  
+        case LoginExceptions.NotAuthorized:
+        case LoginExceptions.NotFound:
+          throw new UnrecognizedCredentialsError("We could not log you in with these credentials.");
+  
+        default:
+          let msg = err.code ? `${err.code} - ${err.message}` : err.toString();
+          throw new AuthError(msg);
       }
+    }
+  } else if (Refresh.isArgs(body)) {
+    try {
+      let refreshResult = await callAndLog('Refreshing Cognito Token', 
+        cognito.refresh(body.refreshToken)
+      );
+      return buildChallengeResponseBody(refreshResult);
 
-    case LoginActions.ConfirmMFALogin:
-        const confirmMFALoginResult = await callAndLog('Confirming MFA Login', 
-          cognito.confirmMFALogin(body.session, body.username, body.mfaLoginCode)
-        );
-        return buildChallengeResponseBody(confirmMFALoginResult);
+    } catch (err) {
+      switch(err.code){
+        // Full list of possible error codes at https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_InitiateAuth.html#API_InitiateAuth_Errors
+        case LoginExceptions.NotAuthorized:
+        case LoginExceptions.NotFound:
+          throw new UnrecognizedCredentialsError("We could not refresh the provided token.");
+  
+        default:
+          let msg = err.code ? `${err.code} - ${err.message}` : err.toString();
+          throw new AuthError(msg);
+      }
+    }
 
-    default:
-      throw new AuthError(perCaseErrMsg({
-        endpoint : ApiMethods.login,
-        actionsMissing : [
-          { action : 'login', parameters : bodyMissing(body, LoginParams.Login) },
-          { action : 'refresh', parameters : bodyMissing(body, LoginParams.Refresh) },
-          { action : 'confirm new password', parameters : bodyMissing(body, LoginParams.ConfirmNewPassword) },
-          { action : 'confirm an MFA login', parameters : bodyMissing(body, LoginParams.ConfirmMFALogin)},
-          { action : 'confirm MFA setup', parameters : bodyMissing(body, LoginParams.ConfirmMFASetup) }
-        ]
-      }))
+  } else if (NewPassChallenge.isArgs(body)) {
+    const newPassResult = await callAndLog('Confirming new password',
+      cognito.confirmNewPassword(body.session, body.username, body.newPassword)
+    );
+    return buildChallengeResponseBody(newPassResult);
+  } else {
+    throw new AuthError(perCaseErrMsg({
+      endpoint : 'login',
+      incorrectShape : body,
+      actionsMissing : [
+        { action : 'login', correctShape : Login.newArgs() },
+        { action : 'refresh', correctShape : Refresh.newArgs() },
+        { action : 'confirm new password', correctShape : NewPassChallenge.newArgs() },
+        //
+        // Commented out but preserved for same reason as block above
+        // { action : 'confirm an MFA login', parameters : bodyMissing(body, LoginParams.ConfirmMFALogin)},
+        // { action : 'confirm MFA setup', parameters : bodyMissing(body, LoginParams.ConfirmMFASetup) }
+      ]
+    }))
   }
+
+    // Commenting out these two login cases related to MFA login,
+    // as the rest of the system (particularly dappbot-types) does
+    // not yet support it.  Keeping the code because we'll want
+    // to add that on eventually.
+    //
+    // case LoginActions.ConfirmMFASetup:
+    //   const confirmMFASetupResult = await callAndLog('Confirming MFA Setup', 
+    //     cognito.confirmMFASetup(body.session, body.mfaSetupCode)
+    //   );
+    //   if (confirmMFASetupResult.Status === 'SUCCESS') {
+    //     return {
+    //       message : 'MFA was successfully set up, you can now log in.'
+    //     }
+    //   } else {
+    //     return {
+    //       message : 'MFA setup was unsuccessful. Please use session to try again.',
+    //       session : confirmMFASetupResult.Session
+    //     }
+    //   }
+
+    // case LoginActions.ConfirmMFALogin:
+    //     const confirmMFALoginResult = await callAndLog('Confirming MFA Login', 
+    //       cognito.confirmMFALogin(body.session, body.username, body.mfaLoginCode)
+    //     );
+    //     return buildChallengeResponseBody(confirmMFALoginResult);
 
 }
 
@@ -233,46 +228,44 @@ enum PasswordResetExceptions {
   NotConfirmed = 'UserNotConfirmedException'
 }
 
-async function apiPasswordReset(body: any) {
-  switch (validate.matchPasswordResetBody(body)) {
-    case PasswordResetActions.Confirm:
-      const { username, passwordResetCode, newPassword } = body;
-      try {
-        await callAndLog('Confirming password reset', cognito.confirmForgotPassword(username, passwordResetCode, newPassword));
-        return {
-          message : 'Your password was successfully set, you may now login.'
-        }
-      } catch (err) {
-        // Full list of potential error codes at: https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_ConfirmForgotPassword.html#API_ConfirmForgotPassword_Errors
-        switch(err.code){
-          case PasswordResetExceptions.Expired:
-            await callAndLog('Sending new password reset code to replace expired one', cognito.beginForgotPassword(username));
-            throw new PasswordResetRequiredError("Your password reset code expired, a new one has been sent.");
-          case PasswordResetExceptions.InvalidPassword:
-            throw new InvalidPasswordError("Your new password was not valid, please select another one.");
-          case PasswordResetExceptions.NotConfirmed:
-            await callAndLog('Resending account confirmation code', cognito.resendSignUpConfirmCode(username));
-            throw new EmailNotConfirmedError("Your account still has not been confirmed, we have resent your signup confirmation code.");
-          default:
-            let msg = err.code ? `${err.code} - ${err.message}` : err.toString();
-            throw new AuthError(msg);
-        }
-      }
-
-    case PasswordResetActions.Begin:
-      await callAndLog('Beginning password reset', cognito.beginForgotPassword(body.username));
+async function apiPasswordReset(body: any):Promise<BeginPassReset.Result | ConfirmPassReset.Result> {
+  if (BeginPassReset.isArgs(body)) {
+    await callAndLog('Beginning password reset', cognito.beginForgotPassword(body.username));
+    return {
+      message : "Please reset your password, we've emailed you a confirmation code."
+    }
+  } else if (ConfirmPassReset.isArgs(body)) {
+    const { username, passwordResetCode, newPassword } = body;
+    try {
+      await callAndLog('Confirming password reset', cognito.confirmForgotPassword(username, passwordResetCode, newPassword));
       return {
-        message : "Please reset your password, we've emailed you a confirmation code."
+        message : 'Your password was successfully set, you may now login.'
       }
-
-    default:
-      throw new AuthError(perCaseErrMsg({
-        endpoint : ApiMethods.passwordReset,
-        actionsMissing : [
-          { action : 'begin password reset', parameters : bodyMissing(body, PasswordResetParams.Begin) },
-          { action : 'confirm password reset', parameters : bodyMissing(body, PasswordResetParams.Confirm) }
-        ]
-      }))
+    } catch (err) {
+      // Full list of potential error codes at: https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_ConfirmForgotPassword.html#API_ConfirmForgotPassword_Errors
+      switch(err.code){
+        case PasswordResetExceptions.Expired:
+          await callAndLog('Sending new password reset code to replace expired one', cognito.beginForgotPassword(username));
+          throw new PasswordResetRequiredError("Your password reset code expired, a new one has been sent.");
+        case PasswordResetExceptions.InvalidPassword:
+          throw new InvalidPasswordError("Your new password was not valid, please select another one.");
+        case PasswordResetExceptions.NotConfirmed:
+          await callAndLog('Resending account confirmation code', cognito.resendSignUpConfirmCode(username));
+          throw new EmailNotConfirmedError("Your account still has not been confirmed, we have resent your signup confirmation code.");
+        default:
+          let msg = err.code ? `${err.code} - ${err.message}` : err.toString();
+          throw new AuthError(msg);
+      }
+    }
+  } else {
+    throw new AuthError(perCaseErrMsg({
+      endpoint : 'password-reset',
+      incorrectShape : body,
+      actionsMissing : [
+        { action : 'begin password reset', correctShape : BeginPassReset.newArgs() },
+        { action : 'confirm password reset', correctShape : ConfirmPassReset.newArgs() }
+      ]
+    }))
   }
 }
 

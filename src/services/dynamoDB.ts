@@ -1,6 +1,10 @@
 import { PutItemInputAttributeMap, AttributeMap } from "aws-sdk/clients/dynamodb";
-import { createS3BucketName, hubUrlFromDappName, enterpriseDnsNameFromDappName, pipelineNameFromDappName, srcPipelineNameFromDappName } from './names'; 
-import { addAwsPromiseRetries, DappApiRepresentation, DappTiers } from '../common'; 
+import Dapp from '@eximchain/dappbot-types/spec/dapp';
+import { 
+    createS3BucketName, hubUrlFromDappName, enterpriseDnsNameFromDappName, 
+    pipelineNameFromDappName, srcPipelineNameFromDappName 
+} from './names'; 
+import { addAwsPromiseRetries } from '../common'; 
 import { AWS, tableName } from '../env';
 import { assertDappItemValid } from '../errors';
 const ddb = new AWS.DynamoDB({apiVersion: '2012-08-10'});
@@ -51,10 +55,7 @@ function serializeDdbItem(
     return item;
 }
 
-function dbItemToApiRepresentation(dbItem:PutItemInputAttributeMap | undefined): (DappApiRepresentation | {}) {
-    if (!dbItem) {
-        return {};
-    }
+function dbItemToApiRepresentation(dbItem:PutItemInputAttributeMap): (Dapp.Item.Api) {
     validateDbItemForOutput(dbItem);
     
     let dappName = dbItem.DappName.S;
@@ -81,7 +82,7 @@ function dbItemToApiRepresentation(dbItem:PutItemInputAttributeMap | undefined):
         "GuardianURL": guardianUrl,
         "State": state,
         "Tier": tier
-    };
+    } as Dapp.Item.Api;
     return apiItem;
 }
 
@@ -95,7 +96,7 @@ function promisePutCreatingDappItem(dappName:string, ownerEmail:string, abi:stri
     let cloudfrontDistroId = null;
     let cloudfrontDns = null;
     let dnsName;
-    if (dappTier === DappTiers.ENTERPRISE) {
+    if (dappTier === Dapp.Tiers.Enterprise) {
         dnsName = enterpriseDnsNameFromDappName(dappName);
     } else {
         dnsName = hubUrlFromDappName(dappName);
@@ -184,7 +185,7 @@ function promiseGetItemsByOwner(ownerEmail:string) {
     return addAwsPromiseRetries(() => ddb.query(getItemParams).promise(), maxRetries);
 }
 
-async function getItemsByOwnerAndTier(ownerEmail:string, tier:DappTiers) {
+async function getItemsByOwnerAndTier(ownerEmail:string, tier:Dapp.Tiers) {
     let getByOwnerResult = await promiseGetItemsByOwner(ownerEmail);
     let allDappItems = getByOwnerResult.Items || [];
     console.log(`Number of dapps owned by ${ownerEmail}: `, allDappItems.length);

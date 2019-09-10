@@ -1,15 +1,13 @@
-import { DappTiers, ValidCreateBody } from './common';
+import { Tiers, isTiers } from '@eximchain/dappbot-types/spec/dapp';
 import services from './services';
 const { cognito, dynamoDB } = services;
-import { assertParameterValid, assertOperationAllowed, assertDappFound, assertDappNameNotTaken, assertInternal, throwInternalValidationError } from './errors';
+import { assertOperationAllowed, assertDappFound, assertDappNameNotTaken, assertInternal, throwInternalValidationError } from './errors';
 import { DynamoDB, CognitoIdentityServiceProvider } from 'aws-sdk';
-import { LoginActions, PasswordResetActions, LoginParams, PasswordResetParams } from './api/auth';
 
 const dappTierToLimitAttr = {
-    [DappTiers.POC]: 'custom:num_dapps',
-    [DappTiers.STANDARD]: 'custom:standard_limit',
-    [DappTiers.PROFESSIONAL]: 'custom:professional_limit',
-    [DappTiers.ENTERPRISE]: 'custom:enterprise_limit'
+    [Tiers.Standard]: 'custom:standard_limit',
+    [Tiers.Professional]: 'custom:professional_limit',
+    [Tiers.Enterprise]: 'custom:enterprise_limit'
 };
 
 // Names that should be disallowed for DappName values
@@ -59,25 +57,7 @@ const reservedDappNames = new Set([
     'weylgovernance'
 ]);
 
-const validDappTiers = new Set(Object.keys(DappTiers));
-
-// CREATE VALIDATION
-
-function validateBodyCreate(body:Object) {
-    assertParameterValid(body.hasOwnProperty('Abi'), "create: required argument 'Abi' not found");
-    assertParameterValid(body.hasOwnProperty('ContractAddr'), "create: required argument 'ContractAddr' not found");
-    assertParameterValid(body.hasOwnProperty('Web3URL'), "create: required argument 'Web3URL' not found");
-    assertParameterValid(body.hasOwnProperty('GuardianURL'), "create: required argument 'GuardianURL' not found");
-    assertParameterValid(body.hasOwnProperty('Tier'), "create: required argument 'Tier' not found");
-
-    let createBody = body as ValidCreateBody;
-    if (createBody.Tier === DappTiers.ENTERPRISE) {
-        assertParameterValid(body.hasOwnProperty('TargetRepoName'), "create: enterprise version required argument 'TargetRepoName' not found");
-        assertParameterValid(body.hasOwnProperty('TargetRepoOwner'), "create: enterprise version required argument 'TargetRepoName' not found");
-    }
-}
-
-async function validateLimitsCreate(cognitoUsername:string, ownerEmail:string, tier:DappTiers) {
+async function validateLimitsCreate(cognitoUsername:string, ownerEmail:string, tier:Tiers) {
     console.log("Validating Limits for User", cognitoUsername);
 
     try {
@@ -116,7 +96,7 @@ function validateAllowedDappName(dappName:string, email:string) {
 }
 
 function validateTier(dappTier:string) {
-    assertOperationAllowed(validDappTiers.has(dappTier), `Invalid Tier '${dappTier}' specified`);
+    assertOperationAllowed(isTiers(dappTier), `Invalid Tier '${dappTier}' specified`);
 }
 
 async function validateNameNotTaken(dappName:string) {
@@ -130,7 +110,7 @@ async function validateNameNotTaken(dappName:string) {
     assertDappNameNotTaken(!existingItem.Item, `DappName ${dappName} is already taken. Please choose another name.`);
 }
 
-async function validateCreateAllowed(dappName:string, cognitoUsername:string, callerEmail:string, dappTier:DappTiers) {
+async function validateCreateAllowed(dappName:string, cognitoUsername:string, callerEmail:string, dappTier:Tiers) {
     validateAllowedDappName(dappName, callerEmail);
     validateTier(dappTier);
     await validateNameNotTaken(dappName);
@@ -184,39 +164,6 @@ async function validateDeleteAllowed(dappName:string, callerEmail:string) {
     return item;
 }
 
-// LOGIN VALIDATION
-
-function bodyHas(body:Object, propertyNames:string[]){
-    return propertyNames.every(name => body.hasOwnProperty(name))
-}
-
-function matchLoginBody(body:Object){
-    if (bodyHas(body, LoginParams.Login)) {
-        return LoginActions.Login;
-    } else if (bodyHas(body, LoginParams.Refresh)) {
-        return LoginActions.Refresh;
-    } else if (bodyHas(body, LoginParams.ConfirmNewPassword)) {
-        return LoginActions.ConfirmNewPassword;
-    } else if (bodyHas(body, LoginParams.ConfirmMFALogin)) {
-        return LoginActions.ConfirmMFALogin;
-    } else if (bodyHas(body, LoginParams.ConfirmMFASetup)) {
-        return LoginActions.ConfirmMFASetup;
-    } else {
-        return false;
-    }
-}
-
-function matchPasswordResetBody(body:Object) {
-    // Confirm must go first b/c Begin args are a subset
-    if (bodyHas(body, PasswordResetParams.Confirm)) {
-        return PasswordResetActions.Confirm;
-    } else if (bodyHas(body, PasswordResetParams.Begin)) {
-        return PasswordResetActions.Begin;
-    } else {
-        return false;
-    }
-}
-
 // HELPER FUNCTIONS
 
 /*
@@ -232,22 +179,11 @@ function isAdmin(email:string) {
     return email === adminEmail;
 }
 
-function cleanDappName(name:string) {
-    return name.toLowerCase()
-        .replace(/\s/g, '-') // Convert spaces to hyphens
-        .replace(/[^A-Za-z0-9-]/g, '') // Remove non-alphanumerics
-        .replace(/-*$|^-*/g, '') // Trim hyphens off the front & back
-}
-
 export default {
-    createBody : validateBodyCreate,
     createAllowed : validateCreateAllowed,
     readAllowed : validateReadAllowed,
     updateBody : validateBodyUpdate,
     updateAllowed : validateUpdateAllowed,
     deleteBody : validateBodyDelete,
-    deleteAllowed : validateDeleteAllowed,
-    matchLoginBody : matchLoginBody,
-    matchPasswordResetBody : matchPasswordResetBody,
-    cleanName : cleanDappName
+    deleteAllowed : validateDeleteAllowed
 }
