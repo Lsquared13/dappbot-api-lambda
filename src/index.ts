@@ -23,14 +23,11 @@ exports.authHandler = async(event:APIGatewayEvent) => {
     })
 
     let endpoint = event.pathParameters.proxy;
-    let fullPath = `${event.requestContext.stage}/${event.path}`
+    let path = event.path;
 
     try {
         const body = event.body ? JSON.parse(event.body) : {};
-        console.log('fullPath found in authHandler: ',fullPath);
-        console.log('Auth.Login.Path: ',Auth.Login.Path);
-        console.log('Auth.PassReset.Path: ',Auth.BeginPassReset.Path);
-        switch(fullPath){
+        switch(path){
             case Auth.Login.Path:
                 let loginResult:Auth.Login.Result = await api.auth.login(body);
                 return successResponse(loginResult)
