@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "npm i; rm -rf build/* dappbot-api-lambda.zip; tsc; cd build; zip -r ../dappbot-api-lambda.zip *; cd .."
+    "build": "sh ./lambda-build.sh dappbot-api-lambda.zip"
   },
   "repository": {
     "type": "git",
