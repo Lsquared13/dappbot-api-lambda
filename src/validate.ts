@@ -1,10 +1,8 @@
-import { Tiers } from '@eximchain/dappbot-types/spec/dapp';
-import { CreateDapp } from '@eximchain/dappbot-types/spec/methods/private';
+import { Tiers, isTiers } from '@eximchain/dappbot-types/spec/dapp';
 import services from './services';
 const { cognito, dynamoDB } = services;
-import { assertParameterValid, assertOperationAllowed, assertDappFound, assertDappNameNotTaken, assertInternal, throwInternalValidationError } from './errors';
+import { assertOperationAllowed, assertDappFound, assertDappNameNotTaken, assertInternal, throwInternalValidationError } from './errors';
 import { DynamoDB, CognitoIdentityServiceProvider } from 'aws-sdk';
-import { LoginActions, PasswordResetActions, LoginParams, PasswordResetParams } from './api/auth';
 
 const dappTierToLimitAttr = {
     [Tiers.Standard]: 'custom:standard_limit',
@@ -59,8 +57,6 @@ const reservedDappNames = new Set([
     'weylgovernance'
 ]);
 
-const validDappTiers = new Set(Object.keys(Tiers));
-
 async function validateLimitsCreate(cognitoUsername:string, ownerEmail:string, tier:Tiers) {
     console.log("Validating Limits for User", cognitoUsername);
 
@@ -100,7 +96,7 @@ function validateAllowedDappName(dappName:string, email:string) {
 }
 
 function validateTier(dappTier:string) {
-    assertOperationAllowed(validDappTiers.has(dappTier), `Invalid Tier '${dappTier}' specified`);
+    assertOperationAllowed(isTiers(dappTier), `Invalid Tier '${dappTier}' specified`);
 }
 
 async function validateNameNotTaken(dappName:string) {
