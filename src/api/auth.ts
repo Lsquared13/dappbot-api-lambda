@@ -53,7 +53,7 @@ function perCaseErrMsg({ endpoint, actionsMissing, incorrectShape }:PerCaseErrMs
 
 export type AuthResult = XOR<CognitoTypes.InitiateAuthResponse, CognitoTypes.RespondToAuthChallengeResponse>;
 
-async function buildChallengeResponseBody(authResult:AuthResult):Promise<UserOrChallengeResult>{
+async function buildUserOrChallengeResult(authResult:AuthResult):Promise<UserOrChallengeResult>{
   let responseBody:AuthData | Challenges.Data;
   if (authResult.AuthenticationResult) {
     const CognitoUser = await cognito.getUserByToken(authResult.AuthenticationResult.AccessToken as string)
@@ -113,7 +113,7 @@ async function apiLogin(body: any):Promise<Login.Result> {
       let loginResult = await callAndLog('Logging into Cognito', 
         cognito.login(body.username, body.password)
       );
-      return buildChallengeResponseBody(loginResult);
+      return buildUserOrChallengeResult(loginResult);
     } catch (err) {
       switch(err.code){
         // Full list of possible error codes at https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_InitiateAuth.html#API_InitiateAuth_Errors
@@ -139,7 +139,7 @@ async function apiLogin(body: any):Promise<Login.Result> {
       let refreshResult = await callAndLog('Refreshing Cognito Token', 
         cognito.refresh(body.refreshToken)
       );
-      return buildChallengeResponseBody(refreshResult);
+      return buildUserOrChallengeResult(refreshResult);
 
     } catch (err) {
       switch(err.code){
@@ -158,7 +158,7 @@ async function apiLogin(body: any):Promise<Login.Result> {
     const newPassResult = await callAndLog('Confirming new password',
       cognito.confirmNewPassword(body.session, body.username, body.newPassword)
     );
-    return buildChallengeResponseBody(newPassResult);
+    return buildUserOrChallengeResult(newPassResult);
 
   } else if (MfaLoginChallenge.isArgs(body)) {
     let user = await cognito.getUser(body.username);
@@ -171,13 +171,13 @@ async function apiLogin(body: any):Promise<Login.Result> {
     const confirmMFALoginResult = await callAndLog('Confirming MFA Login', 
       cognito.confirmMFALogin(body.session, body.username, body.mfaLoginCode, preferredMfa)
     );
-    return buildChallengeResponseBody(confirmMFALoginResult);
+    return buildUserOrChallengeResult(confirmMFALoginResult);
 
   } else if (SelectMfaChallenge.isArgs(body)) {
     const selectMFAChallengeResult = await callAndLog('Selecting MFA Method via Login challenge',
       cognito.selectMFATypeWithChallenge(body.session, body.username, body.mfaSelection)
     );
-    return buildChallengeResponseBody(selectMFAChallengeResult);
+    return buildUserOrChallengeResult(selectMFAChallengeResult);
 
   } else {
     throw new AuthError(perCaseErrMsg({
