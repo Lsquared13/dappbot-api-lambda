@@ -1,7 +1,9 @@
 import { CognitoIdentityServiceProvider as CognitoTypes } from 'aws-sdk';
+import { XOR } from 'ts-xor';
 import { 
   Login, BeginPassReset, ConfirmPassReset, Refresh,
-  NewPassChallenge, MfaLoginChallenge, SelectMfaChallenge
+  NewPassChallenge, MfaLoginChallenge, SelectMfaChallenge,
+  UserOrChallengeResult
 } from '@eximchain/dappbot-types/spec/methods/auth';
 import { typeValidationErrMsg } from '@eximchain/dappbot-types/spec/responses';
 import { 
@@ -49,9 +51,9 @@ function perCaseErrMsg({ endpoint, actionsMissing, incorrectShape }:PerCaseErrMs
   ].join('\n\n')
 }
 
-type AuthResult = CognitoTypes.InitiateAuthResponse | CognitoTypes.RespondToAuthChallengeResponse;
+export type AuthResult = XOR<CognitoTypes.InitiateAuthResponse, CognitoTypes.RespondToAuthChallengeResponse>;
 
-async function buildChallengeResponseBody(authResult:AuthResult){
+async function buildChallengeResponseBody(authResult:AuthResult):Promise<UserOrChallengeResult>{
   let responseBody:AuthData | Challenges.Data;
   if (authResult.AuthenticationResult) {
     const CognitoUser = await cognito.getUserByToken(authResult.AuthenticationResult.AccessToken as string)
@@ -157,6 +159,7 @@ async function apiLogin(body: any):Promise<Login.Result> {
       cognito.confirmNewPassword(body.session, body.username, body.newPassword)
     );
     return buildChallengeResponseBody(newPassResult);
+
   } else if (MfaLoginChallenge.isArgs(body)) {
     let user = await cognito.getUser(body.username);
     let preferredMfa:Challenges.MfaTypes;
@@ -169,11 +172,13 @@ async function apiLogin(body: any):Promise<Login.Result> {
       cognito.confirmMFALogin(body.session, body.username, body.mfaLoginCode, preferredMfa)
     );
     return buildChallengeResponseBody(confirmMFALoginResult);
+
   } else if (SelectMfaChallenge.isArgs(body)) {
     const selectMFAChallengeResult = await callAndLog('Selecting MFA Method via Login challenge',
       cognito.selectMFATypeWithChallenge(body.session, body.username, body.mfaSelection)
     );
     return buildChallengeResponseBody(selectMFAChallengeResult);
+
   } else {
     throw new AuthError(perCaseErrMsg({
       endpoint : 'login',

@@ -1,3 +1,4 @@
+import { AuthResult } from '../api/auth';
 import { AWS, cognitoUserPoolId, cognitoClientId } from '../env';
 import { addAwsPromiseRetries } from '../common';
 import { Challenges } from '@eximchain/dappbot-types/spec/user';
@@ -18,7 +19,7 @@ function promiseGetUser(accessToken:string) {
     return addAwsPromiseRetries(() => cognito.getUser(params).promise());
 }
 
-function promiseLogin(cognitoUsername:string, cognitoPassword:string) {
+function promiseLogin(cognitoUsername:string, cognitoPassword:string):Promise<AuthResult> {
     let params = {
         AuthFlow : 'USER_PASSWORD_AUTH',
         AuthParameters : {
