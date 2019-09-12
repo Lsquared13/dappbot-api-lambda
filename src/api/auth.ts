@@ -164,6 +164,7 @@ async function apiLogin(body: any):Promise<Login.Result> {
     let user = await cognito.getUser(body.username);
     let preferredMfa:Challenges.MfaTypes;
     console.log("Login challenge for user: ", user);
+    console.log("MFA Setting List", user.UserMFASettingList);
     if (Challenges.isMfaTypes(user.PreferredMfaSetting)) {
       preferredMfa = user.PreferredMfaSetting;
     } else {
