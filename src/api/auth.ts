@@ -51,9 +51,9 @@ function perCaseErrMsg({ endpoint, actionsMissing, incorrectShape }:PerCaseErrMs
   ].join('\n\n')
 }
 
-export type AuthResult = XOR<CognitoTypes.InitiateAuthResponse, CognitoTypes.RespondToAuthChallengeResponse>;
+export type CognitoAuthResponse = XOR<CognitoTypes.InitiateAuthResponse, CognitoTypes.RespondToAuthChallengeResponse>;
 
-async function buildUserOrChallengeResult(authResult:AuthResult):Promise<UserOrChallengeResult>{
+async function buildUserOrChallengeResult(authResult:CognitoAuthResponse):Promise<UserOrChallengeResult>{
   let responseBody:AuthData | Challenges.Data;
   if (authResult.AuthenticationResult) {
     const CognitoUser = await cognito.getUserByToken(authResult.AuthenticationResult.AccessToken as string)
