@@ -1,5 +1,6 @@
 import { AWS, cognitoUserPoolId, cognitoClientId } from '../env';
 import { addAwsPromiseRetries } from '../common';
+import { Challenges } from '@eximchain/dappbot-types/spec/user';
 const cognito = new AWS.CognitoIdentityServiceProvider({apiVersion: '2016-04-18'});
 
 function promiseAdminGetUser(cognitoUsername:string) {
@@ -17,7 +18,7 @@ function promiseGetUser(accessToken:string) {
     return addAwsPromiseRetries(() => cognito.getUser(params).promise());
 }
 
-function promiseLogin(cognitoUsername:string, cognitoPassword:string){
+function promiseLogin(cognitoUsername:string, cognitoPassword:string) {
     let params = {
         AuthFlow : 'USER_PASSWORD_AUTH',
         AuthParameters : {
@@ -29,7 +30,7 @@ function promiseLogin(cognitoUsername:string, cognitoPassword:string){
     return addAwsPromiseRetries(() => cognito.initiateAuth(params).promise())
 }
 
-function promiseRefresh(refreshToken:string){
+function promiseRefresh(refreshToken:string) {
     let params = {
         AuthFlow : 'REFRESH_TOKEN',
         AuthParameters : {
@@ -40,15 +41,9 @@ function promiseRefresh(refreshToken:string){
     return addAwsPromiseRetries(() => cognito.initiateAuth(params).promise())
 }
 
-export enum CognitoChallengeNames {
-    NewPassword = 'NEW_PASSWORD_REQUIRED',
-    SMS_MFA = 'SMS_MFA',
-    MFASetup = 'MFA_SETUP'
-}
-
 function promiseConfirmNewPassword(userSession:string, username:string, newPassword:string) {
     let params = {
-        ChallengeName : CognitoChallengeNames.NewPassword,
+        ChallengeName : Challenges.Types.NewPasswordRequired,
         ClientId : cognitoClientId,
         Session : userSession,
         ChallengeResponses : {
@@ -59,20 +54,34 @@ function promiseConfirmNewPassword(userSession:string, username:string, newPassw
     return addAwsPromiseRetries(() => cognito.respondToAuthChallenge(params).promise());
 }
 
-function promiseConfirmMFALogin(userSession:string, username:string, code:string){
+function promiseConfirmMFALogin(userSession:string, username:string, code:string, mfaType:Challenges.MfaTypes) {
+    let codeKey = mfaType === Challenges.Types.SmsMfa ? 'SMS_MFA_CODE' : 'SOFTWARE_TOKEN_MFA_CODE';
     let params = {
-        ChallengeName : CognitoChallengeNames.SMS_MFA,
+        ChallengeName : mfaType,
         ClientId : cognitoClientId,
         Session : userSession,
         ChallengeResponses : {
             'USERNAME' : username,
-            'SMS_MFA_CODE' : code
+            [codeKey] : code
         }
     }
     return addAwsPromiseRetries(() => cognito.respondToAuthChallenge(params).promise());
 }
 
-function promiseBeginForgotPassword(cognitoUsername:string){
+function promiseSelectMFATypeWithChallenge(userSession:string, username:string, mfaType:Challenges.MfaTypes) {
+    let params = {
+        ChallengeName : Challenges.Types.SelectMfaType,
+        ClientId : cognitoClientId,
+        Session : userSession,
+        ChallengeResponses : {
+            'USERNAME' : username,
+            'ANSWER' : mfaType
+        }
+    }
+    return addAwsPromiseRetries(() => cognito.respondToAuthChallenge(params).promise());
+}
+
+function promiseBeginForgotPassword(cognitoUsername:string) {
     let params = {
         ClientId : cognitoClientId,
         Username : cognitoUsername
@@ -98,14 +107,14 @@ function promiseResendSignUpConfirmCode(cognitoUsername:string) {
     return addAwsPromiseRetries(() => cognito.resendConfirmationCode(params).promise())
 }
 
-function promiseBeginMFASetup(cognitoSession:string){
+function promiseAssociateSoftwareToken(cognitoSession:string) {
     let params = {
         Session : cognitoSession
     }
     return addAwsPromiseRetries(() => cognito.associateSoftwareToken(params).promise());
 }
 
-function promiseConfirmMFASetup(cognitoSession:string, mfaSetupCode:string){
+function promiseVerifySoftwareToken(cognitoSession:string, mfaSetupCode:string) {
     let params = {
         Session : cognitoSession,
         UserCode : mfaSetupCode
@@ -114,15 +123,16 @@ function promiseConfirmMFASetup(cognitoSession:string, mfaSetupCode:string){
 }
 
 export default {
-    getUser                 : promiseAdminGetUser,
-    getUserByToken          : promiseGetUser,
-    login                   : promiseLogin,
-    refresh                 : promiseRefresh,
-    confirmNewPassword      : promiseConfirmNewPassword,
-    confirmMFALogin         : promiseConfirmMFALogin,
-    beginMFASetup           : promiseBeginMFASetup,
-    confirmMFASetup         : promiseConfirmMFASetup,
-    beginForgotPassword     : promiseBeginForgotPassword,
-    confirmForgotPassword   : promiseConfirmForgotPassword,
-    resendSignUpConfirmCode : promiseResendSignUpConfirmCode 
+    getUser                    : promiseAdminGetUser,
+    getUserByToken             : promiseGetUser,
+    login                      : promiseLogin,
+    refresh                    : promiseRefresh,
+    confirmNewPassword         : promiseConfirmNewPassword,
+    confirmMFALogin            : promiseConfirmMFALogin,
+    associateSoftwareToken     : promiseAssociateSoftwareToken,
+    verifySoftwareToken        : promiseVerifySoftwareToken,
+    beginForgotPassword        : promiseBeginForgotPassword,
+    confirmForgotPassword      : promiseConfirmForgotPassword,
+    resendSignUpConfirmCode    : promiseResendSignUpConfirmCode,
+    selectMFATypeWithChallenge : promiseSelectMFATypeWithChallenge
 }
