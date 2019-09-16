@@ -155,6 +155,7 @@ async function apiLogin(body: any):Promise<Login.Result> {
     }
 
   } else if (NewPassChallenge.isArgs(body)) {
+    // TODO: Confirm we can use body.username and don't need the UUID from a getUser call
     const newPassResult = await callAndLog('Confirming new password',
       cognito.confirmNewPassword(body.session, body.username, body.newPassword)
     );
@@ -163,21 +164,22 @@ async function apiLogin(body: any):Promise<Login.Result> {
   } else if (MfaLoginChallenge.isArgs(body)) {
     let user = await cognito.getUser(body.username);
     let preferredMfa:Challenges.MfaTypes;
-    console.log("Login challenge for user: ", user);
-    console.log("MFA Setting List", user.UserMFASettingList);
+    let username:string;
     if (Challenges.isMfaTypes(user.PreferredMfaSetting)) {
       preferredMfa = user.PreferredMfaSetting;
+      username = user.Username;
     } else if (!user.PreferredMfaSetting && !user.UserMFASettingList) {
       throw new AuthError("User has no MFA preference set");
     } else {
       throw new AuthError("Unrecognized MFA preference");
     }
     const confirmMFALoginResult = await callAndLog('Confirming MFA Login', 
-      cognito.confirmMFALogin(body.session, body.username, body.mfaLoginCode, preferredMfa)
+      cognito.confirmMFALogin(body.session, username, body.mfaLoginCode, preferredMfa)
     );
     return buildUserOrChallengeResult(confirmMFALoginResult);
 
   } else if (SelectMfaChallenge.isArgs(body)) {
+    // TODO: Confirm we can use body.username and don't need the UUID from a getUser call
     const selectMFAChallengeResult = await callAndLog('Selecting MFA Method via Login challenge',
       cognito.selectMFATypeWithChallenge(body.session, body.username, body.mfaSelection)
     );

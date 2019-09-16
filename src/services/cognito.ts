@@ -65,7 +65,6 @@ function promiseConfirmMFALogin(userSession:string, username:string, code:string
             [codeKey] : code
         }
     }
-    console.log("Confirm MFA Login Args", params);
     return addAwsPromiseRetries(() => cognito.respondToAuthChallenge(params).promise());
 }
 
