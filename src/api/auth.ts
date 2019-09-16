@@ -155,7 +155,6 @@ async function apiLogin(body: any):Promise<Login.Result> {
     }
 
   } else if (NewPassChallenge.isArgs(body)) {
-    // TODO: Confirm we can use body.username and don't need the UUID from a getUser call
     const newPassResult = await callAndLog('Confirming new password',
       cognito.confirmNewPassword(body.session, body.username, body.newPassword)
     );
