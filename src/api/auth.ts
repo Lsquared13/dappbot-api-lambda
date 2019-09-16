@@ -178,12 +178,8 @@ async function apiLogin(body: any):Promise<Login.Result> {
     return buildUserOrChallengeResult(confirmMFALoginResult);
 
   } else if (SelectMfaChallenge.isArgs(body)) {
-    // TODO: Confirm we can use body.username and don't need the UUID from a getUser call
-    const selectMFAChallengeResult = await callAndLog('Selecting MFA Method via Login challenge',
-      cognito.selectMFATypeWithChallenge(body.session, body.username, body.mfaSelection)
-    );
-    return buildUserOrChallengeResult(selectMFAChallengeResult);
-
+    // This should never happen and indicates some sort of configuration bug
+    throw new AuthError("User has no MFA preference set");
   } else {
     throw new AuthError(perCaseErrMsg({
       endpoint : 'login',
