@@ -167,6 +167,8 @@ async function apiLogin(body: any):Promise<Login.Result> {
     console.log("MFA Setting List", user.UserMFASettingList);
     if (Challenges.isMfaTypes(user.PreferredMfaSetting)) {
       preferredMfa = user.PreferredMfaSetting;
+    } else if (!user.PreferredMfaSetting && !user.UserMFASettingList) {
+      throw new AuthError("User has no MFA preference set");
     } else {
       throw new AuthError("Unrecognized MFA preference");
     }
