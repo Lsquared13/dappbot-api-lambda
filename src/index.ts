@@ -48,7 +48,7 @@ exports.authHandler = async(event:APIGatewayEvent) => {
     }
 }
 
-exports.userConfigHandler = async(event:APIGatewayEvent) => {
+exports.configHandler = async(event:APIGatewayEvent) => {
     console.log("request: "+JSON.stringify(event));
 
     let responseOpts:ResponseOptions = {};
