@@ -62,7 +62,6 @@ exports.userConfigHandler = async(event:APIGatewayEvent) => {
         message: `Unrecognized auth HttpMethod ${method}`
     })
 
-    let endpoint = event.pathParameters.proxy;
     let path = event.path;
     let cognitoUsername = event.requestContext.authorizer.claims["cognito:username"];
 
@@ -81,7 +80,7 @@ exports.userConfigHandler = async(event:APIGatewayEvent) => {
         if (authErr instanceof Error401) {
             responseOpts.errorResponseCode = 401;
         }
-        let err = { message : `${endpoint} Error: ${authErr.toString()}` }
+        let err = { message : `config Error: ${authErr.toString()}` }
         return unexpectedErrorResponse(err, responseOpts);
     }
 }
