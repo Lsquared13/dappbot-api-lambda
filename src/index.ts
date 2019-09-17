@@ -30,7 +30,7 @@ exports.authHandler = async(event:APIGatewayEvent) => {
         switch(path){
             case Auth.Login.Path:
                 let loginResult:Auth.Login.Result = await api.auth.login(body);
-                return successResponse(loginResult)
+                return successResponse(loginResult);
             case Auth.BeginPassReset.Path:
                 let resetResult:Auth.BeginPassReset.Result | Auth.ConfirmPassReset.Result  = await api.auth.passwordReset(body);
                 return successResponse(resetResult);
@@ -44,6 +44,43 @@ exports.authHandler = async(event:APIGatewayEvent) => {
             responseOpts.errorResponseCode = 401;
         }
         let err = { message : `${endpoint} Error: ${authErr.toString()}` }
+        return unexpectedErrorResponse(err, responseOpts);
+    }
+}
+
+exports.configHandler = async(event:APIGatewayEvent) => {
+    console.log("request: "+JSON.stringify(event));
+
+    let responseOpts:ResponseOptions = {};
+    let method = event.httpMethod.toUpperCase();
+    if (!isHttpMethod(method)) return userErrorResponse({
+        message: `Unrecognized HttpMethod: ${method}`
+    })
+
+    if (method === 'OPTIONS') return successResponse(undefined);
+    if (method !== 'POST') return userErrorResponse({
+        message: `Unrecognized auth HttpMethod ${method}`
+    })
+
+    let path = event.path;
+    let cognitoUsername = event.requestContext.authorizer.claims["cognito:username"];
+
+    try {
+        const body = event.body ? JSON.parse(event.body) : {};
+        switch(path){
+            case Auth.SetMfaPreference.Path:
+                let mfaResult:Auth.SetMfaPreference.Result | Auth.BeginSetupAppMfa.Result = await api.auth.configureMfa(body, cognitoUsername);
+                return successResponse(mfaResult);
+            default:
+                return userErrorResponse({
+                    message: `Invalid config endpoint on ${Auth.authBasePath}: ${event.pathParameters.proxy}`
+                });
+        }
+    } catch (authErr) {
+        if (authErr instanceof Error401) {
+            responseOpts.errorResponseCode = 401;
+        }
+        let err = { message : `config Error: ${authErr.toString()}` }
         return unexpectedErrorResponse(err, responseOpts);
     }
 }
