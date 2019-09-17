@@ -2,7 +2,7 @@ import { AWS, cognitoUserPoolId, cognitoClientId } from '../env';
 import { addAwsPromiseRetries } from '../common';
 import { Challenges } from '@eximchain/dappbot-types/spec/user';
 import { AttributeType, SMSMfaSettingsType, SoftwareTokenMfaSettingsType } from 'aws-sdk/clients/cognitoidentityserviceprovider';
-import { ValidationError } from '../errors';
+import { ValidationError, AuthError } from '../errors';
 const cognito = new AWS.CognitoIdentityServiceProvider({apiVersion: '2016-04-18'});
 
 type MfaSettingsType = SMSMfaSettingsType | SoftwareTokenMfaSettingsType;
@@ -136,6 +136,9 @@ function promiseUpdateUserAttributes(cognitoUsername:string, userAttributes:Attr
 }
 
 async function updateUserPhoneNumber(cognitoUsername:string, phoneNumber:string) {
+    if (!isPhoneNumber(phoneNumber)) {
+        throw new ValidationError(`Phone number '${phoneNumber}' is not in the correct format`);
+    }
     let phoneNumberAttr = {
         Name: 'phone_number',
         Value: phoneNumber
@@ -143,7 +146,7 @@ async function updateUserPhoneNumber(cognitoUsername:string, phoneNumber:string)
     return await promiseUpdateUserAttributes(cognitoUsername, [phoneNumberAttr]);
 }
 
-function isPhoneNumber(val:string) {
+function isPhoneNumber(val:string):boolean {
     const phoneNumberPattern = /\+[0-9]{2,15}/;
     return phoneNumberPattern.test(val);
 }
@@ -191,6 +194,14 @@ async function setPreferredMfa(cognitoUsername:string, mfaEnabled:boolean, mfaTy
     return await promiseAdminSetUserMfaPreference(cognitoUsername, smsMfaSetting, softwareTokenMfaSetting);
 }
 
+async function getAccessTokenFromRefresh(refreshToken:string):Promise<string> {
+    let user = await promiseRefresh(refreshToken);
+    if (!user.AuthenticationResult || !user.AuthenticationResult.AccessToken) {
+      throw new AuthError("Failure to retrieve access token");
+    }
+    return user.AuthenticationResult.AccessToken;
+}
+
 export default {
     getUser                    : promiseAdminGetUser,
     getUserByToken             : promiseGetUser,
@@ -204,7 +215,7 @@ export default {
     confirmForgotPassword      : promiseConfirmForgotPassword,
     resendSignUpConfirmCode    : promiseResendSignUpConfirmCode,
     selectMFATypeWithChallenge : promiseSelectMFATypeWithChallenge,
-    isPhoneNumber              : isPhoneNumber,
     updatePhoneNumber          : updateUserPhoneNumber,
-    setPreferredMfa            : setPreferredMfa
+    setPreferredMfa            : setPreferredMfa,
+    getAccessTokenFromRefresh  : getAccessTokenFromRefresh
 }

@@ -281,19 +281,12 @@ async function apiConfigureMfa(body:any, cognitoUsername:string):Promise<SetMfaP
       message: "Successfully set MFA Preferences."
     };
   } else if (SetupSmsMfa.isArgs(body)) {
-    if (!cognito.isPhoneNumber(body.phoneNumber)) {
-      throw new AuthError(`Phone number '${body.phoneNumber}' is not in the correct format`);
-    }
     await callAndLog('Setting user phone number', cognito.updatePhoneNumber(cognitoUsername, body.phoneNumber));
     return {
       message: "Your phone number has been registered for SMS MFA."
     };
   } else if (BeginSetupAppMfa.isArgs(body)) {
-    let user = await callAndLog('Retrieving access token for user', cognito.refresh(body.refreshToken));
-    if (!user.AuthenticationResult || !user.AuthenticationResult.AccessToken) {
-      throw new AuthError("Failure to retrieve access token");
-    }
-    let accessToken = user.AuthenticationResult.AccessToken;
+    let accessToken = await callAndLog('Retrieving access token for user', cognito.getAccessTokenFromRefresh(body.refreshToken));
     let associateSoftwareTokenResult = await callAndLog('Associating Software Token', cognito.associateSoftwareToken(accessToken));
     let secretCode = associateSoftwareTokenResult.SecretCode;
     if (!secretCode) {
@@ -303,11 +296,7 @@ async function apiConfigureMfa(body:any, cognitoUsername:string):Promise<SetMfaP
       secretCode: secretCode
     };
   } else if (ConfirmSetupAppMfa.isArgs(body)) {
-    let user = await callAndLog('Retrieving access token for user', cognito.refresh(body.refreshToken));
-    if (!user.AuthenticationResult || !user.AuthenticationResult.AccessToken) {
-      throw new AuthError("Failure to retrieve access token");
-    }
-    let accessToken = user.AuthenticationResult.AccessToken;
+    let accessToken = await callAndLog('Retrieving access token for user', cognito.getAccessTokenFromRefresh(body.refreshToken));
     let verifySoftwareTokenResponse = await callAndLog('Verifying Software Token', cognito.verifySoftwareToken(accessToken, body.mfaVerifyCode));
     if (verifySoftwareTokenResponse.Status === 'SUCCESS') {
       return {
