@@ -278,7 +278,7 @@ async function apiConfigureMfa(body:any, cognitoUsername:string):Promise<SetMfaP
   if (SetMfaPreference.isArgs(body)) {
     await callAndLog('Set User MFA Preference', cognito.setPreferredMfa(cognitoUsername, body.mfaEnabled, body.preferredMfa));
     return {
-      message: "Your MFA preference has been set"
+      message: "Successfully set MFA Preferences."
     };
   } else if (SetupSmsMfa.isArgs(body)) {
     if (!cognito.isPhoneNumber(body.phoneNumber)) {
@@ -286,7 +286,7 @@ async function apiConfigureMfa(body:any, cognitoUsername:string):Promise<SetMfaP
     }
     await callAndLog('Setting user phone number', cognito.updatePhoneNumber(cognitoUsername, body.phoneNumber));
     return {
-      message: "Your phone number has been set successfully."
+      message: "Your phone number has been registered for SMS MFA."
     };
   } else if (BeginSetupAppMfa.isArgs(body)) {
     let user = await callAndLog('Retrieving access token for user', cognito.refresh(body.refreshToken));
@@ -311,7 +311,7 @@ async function apiConfigureMfa(body:any, cognitoUsername:string):Promise<SetMfaP
     let verifySoftwareTokenResponse = await callAndLog('Verifying Software Token', cognito.verifySoftwareToken(accessToken, body.mfaVerifyCode));
     if (verifySoftwareTokenResponse.Status === 'SUCCESS') {
       return {
-        message: "Your App-based MFA token has been successfully verified"
+        message: "Your MFA app has been successfully configured."
       };
     } else {
       throw new AuthError("Failed to verify App-based MFA token");
