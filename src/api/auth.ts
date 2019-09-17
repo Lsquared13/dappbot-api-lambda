@@ -3,7 +3,8 @@ import { XOR } from 'ts-xor';
 import { 
   Login, BeginPassReset, ConfirmPassReset, Refresh,
   NewPassChallenge, MfaLoginChallenge, SelectMfaChallenge,
-  UserOrChallengeResult
+  UserOrChallengeResult, SetMfaPreference, BeginSetupAppMfa,
+  SetupSmsMfa, ConfirmSetupAppMfa, ResourcePaths
 } from '@eximchain/dappbot-types/spec/methods/auth';
 import { typeValidationErrMsg } from '@eximchain/dappbot-types/spec/responses';
 import { 
@@ -182,7 +183,7 @@ async function apiLogin(body: any):Promise<Login.Result> {
     throw new AuthError("User has no MFA preference set");
   } else {
     throw new AuthError(perCaseErrMsg({
-      endpoint : 'login',
+      endpoint : ResourcePaths.login,
       incorrectShape : body,
       actionsMissing : [
         { action : 'login', correctShape : Login.newArgs() },
@@ -263,7 +264,7 @@ async function apiPasswordReset(body: any):Promise<BeginPassReset.Result | Confi
     }
   } else {
     throw new AuthError(perCaseErrMsg({
-      endpoint : 'password-reset',
+      endpoint : ResourcePaths.passReset,
       incorrectShape : body,
       actionsMissing : [
         { action : 'begin password reset', correctShape : BeginPassReset.newArgs() },
@@ -273,7 +274,64 @@ async function apiPasswordReset(body: any):Promise<BeginPassReset.Result | Confi
   }
 }
 
+async function apiConfigureMfa(body:any, cognitoUsername:string):Promise<SetMfaPreference.Result | BeginSetupAppMfa.Result> {
+  if (SetMfaPreference.isArgs(body)) {
+    await callAndLog('Set User MFA Preference', cognito.setPreferredMfa(cognitoUsername, body.mfaEnabled, body.preferredMfa));
+    return {
+      message: "Your MFA preference has been set"
+    };
+  } else if (SetupSmsMfa.isArgs(body)) {
+    if (!cognito.isPhoneNumber(body.phoneNumber)) {
+      throw new AuthError(`Phone number '${body.phoneNumber}' for user '${cognitoUsername}' is not in the correct format`);
+    }
+    await callAndLog('Setting user phone number', cognito.updatePhoneNumber(cognitoUsername, body.phoneNumber));
+    return {
+      message: "Your phone number has been set successfully."
+    };
+  } else if (BeginSetupAppMfa.isArgs(body)) {
+    let user = await callAndLog('Retrieving access token for user', cognito.refresh(body.refreshToken));
+    if (!user.AuthenticationResult || !user.AuthenticationResult.AccessToken) {
+      throw new AuthError("Failure to retrieve access token");
+    }
+    let accessToken = user.AuthenticationResult.AccessToken;
+    let associateSoftwareTokenResult = await callAndLog('Associating Software Token', cognito.associateSoftwareToken(accessToken));
+    let secretCode = associateSoftwareTokenResult.SecretCode;
+    if (!secretCode) {
+      throw new AuthError("Secret code unexpectedly missing from response");
+    }
+    return {
+      secretCode: secretCode
+    };
+  } else if (ConfirmSetupAppMfa.isArgs(body)) {
+    let user = await callAndLog('Retrieving access token for user', cognito.refresh(body.refreshToken));
+    if (!user.AuthenticationResult || !user.AuthenticationResult.AccessToken) {
+      throw new AuthError("Failure to retrieve access token");
+    }
+    let accessToken = user.AuthenticationResult.AccessToken;
+    let verifySoftwareTokenResponse = await callAndLog('Verifying Software Token', cognito.verifySoftwareToken(accessToken, body.mfaVerifyCode));
+    if (verifySoftwareTokenResponse.Status === 'SUCCESS') {
+      return {
+        message: "Your App-based MFA token has been successfully verified"
+      };
+    } else {
+      throw new AuthError("Failed to verify App-based MFA token");
+    }
+  } else {
+    throw new AuthError(perCaseErrMsg({
+      endpoint : ResourcePaths.configureMfa,
+      incorrectShape : body,
+      actionsMissing : [
+        { action : 'set MFA preference', correctShape : SetMfaPreference.newArgs() },
+        { action : 'setup SMS MFA', correctShape : SetupSmsMfa.newArgs() },
+        { action : 'begin setup App MFA', correctShape : BeginSetupAppMfa.newArgs() },
+        { action : 'confirm setup App MFA', correctShape : ConfirmSetupAppMfa.newArgs() }
+      ]
+    }))
+  }
+}
+
 export default {
   login: apiLogin,
+  configureMfa: apiConfigureMfa,
   passwordReset: apiPasswordReset
 }

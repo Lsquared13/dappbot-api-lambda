@@ -1,7 +1,11 @@
 import { AWS, cognitoUserPoolId, cognitoClientId } from '../env';
 import { addAwsPromiseRetries } from '../common';
 import { Challenges } from '@eximchain/dappbot-types/spec/user';
+import { AttributeType, SMSMfaSettingsType, SoftwareTokenMfaSettingsType } from 'aws-sdk/clients/cognitoidentityserviceprovider';
+import { ValidationError } from '../errors';
 const cognito = new AWS.CognitoIdentityServiceProvider({apiVersion: '2016-04-18'});
+
+type MfaSettingsType = SMSMfaSettingsType | SoftwareTokenMfaSettingsType;
 
 function promiseAdminGetUser(cognitoUsername:string) {
     let params = {
@@ -107,19 +111,84 @@ function promiseResendSignUpConfirmCode(cognitoUsername:string) {
     return addAwsPromiseRetries(() => cognito.resendConfirmationCode(params).promise())
 }
 
-function promiseAssociateSoftwareToken(cognitoSession:string) {
+function promiseAssociateSoftwareToken(accessToken:string) {
     let params = {
-        Session : cognitoSession
+        AccessToken : accessToken
     }
     return addAwsPromiseRetries(() => cognito.associateSoftwareToken(params).promise());
 }
 
-function promiseVerifySoftwareToken(cognitoSession:string, mfaSetupCode:string) {
+function promiseVerifySoftwareToken(accessToken:string, mfaSetupCode:string) {
     let params = {
-        Session : cognitoSession,
+        AccessToken : accessToken,
         UserCode : mfaSetupCode
     }
     return addAwsPromiseRetries(() => cognito.verifySoftwareToken(params).promise());
+}
+
+function promiseUpdateUserAttributes(cognitoUsername:string, userAttributes:AttributeType[]) {
+    let params = {
+        UserPoolId: cognitoUserPoolId,
+        Username: cognitoUsername,
+        UserAttributes: userAttributes
+    };
+    return addAwsPromiseRetries(() => cognito.adminUpdateUserAttributes(params).promise());
+}
+
+async function updateUserPhoneNumber(cognitoUsername:string, phoneNumber:string) {
+    let phoneNumberAttr = {
+        Name: 'phone_number',
+        Value: phoneNumber
+    };
+    return await promiseUpdateUserAttributes(cognitoUsername, [phoneNumberAttr]);
+}
+
+function isPhoneNumber(val:string) {
+    const phoneNumberPattern = /\+[0-9]{2,15}/;
+    return phoneNumberPattern.test(val);
+}
+
+function promiseAdminSetUserMfaPreference(cognitoUsername:string, smsMfaSettings:SMSMfaSettingsType, softwareTokenMfaSettings:SoftwareTokenMfaSettingsType) {
+    let params = {
+        UserPoolId: cognitoUserPoolId,
+        Username: cognitoUsername,
+        SMSMfaSettings: smsMfaSettings,
+        SoftwareTokenMfaSettings: softwareTokenMfaSettings
+    };
+    return addAwsPromiseRetries(() => cognito.adminSetUserMFAPreference(params).promise());
+}
+
+async function setPreferredMfa(cognitoUsername:string, mfaEnabled:boolean, mfaType:Challenges.MfaTypes | undefined) {
+    const enabledSetting:MfaSettingsType = {
+        Enabled: true,
+        PreferredMfa: true
+    };
+    const disabledSetting:MfaSettingsType = {
+        Enabled: false,
+        PreferredMfa: false
+    };
+    let smsMfaSetting:SMSMfaSettingsType;
+    let softwareTokenMfaSetting:SoftwareTokenMfaSettingsType;
+
+    if (!mfaEnabled) {
+        smsMfaSetting = disabledSetting;
+        softwareTokenMfaSetting = disabledSetting;
+    } else {
+        switch (mfaType) {
+            case Challenges.Types.SmsMfa:
+                smsMfaSetting = enabledSetting;
+                softwareTokenMfaSetting = disabledSetting;
+                break;
+            case Challenges.Types.AppMfa:
+                smsMfaSetting = disabledSetting;
+                softwareTokenMfaSetting = enabledSetting;
+                break;
+            default:
+                throw new ValidationError(`MFA type '${mfaType}' not recognized`);
+        }
+    }
+
+    return await promiseAdminSetUserMfaPreference(cognitoUsername, smsMfaSetting, softwareTokenMfaSetting);
 }
 
 export default {
@@ -134,5 +203,8 @@ export default {
     beginForgotPassword        : promiseBeginForgotPassword,
     confirmForgotPassword      : promiseConfirmForgotPassword,
     resendSignUpConfirmCode    : promiseResendSignUpConfirmCode,
-    selectMFATypeWithChallenge : promiseSelectMFATypeWithChallenge
+    selectMFATypeWithChallenge : promiseSelectMFATypeWithChallenge,
+    isPhoneNumber              : isPhoneNumber,
+    updatePhoneNumber          : updateUserPhoneNumber,
+    setPreferredMfa            : setPreferredMfa
 }
