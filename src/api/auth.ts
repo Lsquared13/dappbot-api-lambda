@@ -282,7 +282,7 @@ async function apiConfigureMfa(body:any, cognitoUsername:string):Promise<SetMfaP
     };
   } else if (SetupSmsMfa.isArgs(body)) {
     if (!cognito.isPhoneNumber(body.phoneNumber)) {
-      throw new AuthError(`Phone number '${body.phoneNumber}' for user '${cognitoUsername}' is not in the correct format`);
+      throw new AuthError(`Phone number '${body.phoneNumber}' is not in the correct format`);
     }
     await callAndLog('Setting user phone number', cognito.updatePhoneNumber(cognitoUsername, body.phoneNumber));
     return {
