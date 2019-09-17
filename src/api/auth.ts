@@ -1,6 +1,9 @@
 import { CognitoIdentityServiceProvider as CognitoTypes } from 'aws-sdk';
+import { XOR } from 'ts-xor';
 import { 
-  Login, BeginPassReset, ConfirmPassReset, Refresh, NewPassChallenge
+  Login, BeginPassReset, ConfirmPassReset, Refresh,
+  NewPassChallenge, MfaLoginChallenge, SelectMfaChallenge,
+  UserOrChallengeResult
 } from '@eximchain/dappbot-types/spec/methods/auth';
 import { typeValidationErrMsg } from '@eximchain/dappbot-types/spec/responses';
 import { 
@@ -11,11 +14,7 @@ import {
   AuthError, UnrecognizedCredentialsError, EmailNotConfirmedError, 
   PasswordResetRequiredError, InvalidPasswordError
  } from '../errors';
-import cognito, { CognitoChallengeNames } from '../services/cognito';
-
-function bodyMissing(body:Object, propertyNames:string[]){
-  return propertyNames.filter(name => !body.hasOwnProperty(name));
-}
+import cognito from '../services/cognito';
 
 export enum AuthParamNames {
   Username = 'username',
@@ -52,9 +51,9 @@ function perCaseErrMsg({ endpoint, actionsMissing, incorrectShape }:PerCaseErrMs
   ].join('\n\n')
 }
 
-type AuthResult = CognitoTypes.InitiateAuthResponse | CognitoTypes.RespondToAuthChallengeResponse;
+export type CognitoAuthResponse = XOR<CognitoTypes.InitiateAuthResponse, CognitoTypes.RespondToAuthChallengeResponse>;
 
-async function buildChallengeResponseBody(authResult:AuthResult){
+async function buildUserOrChallengeResult(authResult:CognitoAuthResponse):Promise<UserOrChallengeResult>{
   let responseBody:AuthData | Challenges.Data;
   if (authResult.AuthenticationResult) {
     const CognitoUser = await cognito.getUserByToken(authResult.AuthenticationResult.AccessToken as string)
@@ -80,14 +79,6 @@ async function buildChallengeResponseBody(authResult:AuthResult){
       ChallengeName: authResult.ChallengeName as Challenges.Types,
       ChallengeParameters: authResult.ChallengeParameters as CognitoTypes.ChallengeParametersType,
       Session: authResult.Session as CognitoTypes.SessionType
-    }
-    if (authResult.ChallengeName === CognitoChallengeNames.MFASetup){
-      try {
-        const mfaSetup = await callAndLog("Beginning MFA setup", cognito.beginMFASetup(authResult.Session as string));
-        responseBody.ChallengeParameters.mfaSetupCode = mfaSetup.SecretCode as string;
-      } catch (err) {
-        throw err;
-      }
     }
   }
   return responseBody;
@@ -122,7 +113,7 @@ async function apiLogin(body: any):Promise<Login.Result> {
       let loginResult = await callAndLog('Logging into Cognito', 
         cognito.login(body.username, body.password)
       );
-      return buildChallengeResponseBody(loginResult);
+      return buildUserOrChallengeResult(loginResult);
     } catch (err) {
       switch(err.code){
         // Full list of possible error codes at https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_InitiateAuth.html#API_InitiateAuth_Errors
@@ -148,7 +139,7 @@ async function apiLogin(body: any):Promise<Login.Result> {
       let refreshResult = await callAndLog('Refreshing Cognito Token', 
         cognito.refresh(body.refreshToken)
       );
-      return buildChallengeResponseBody(refreshResult);
+      return buildUserOrChallengeResult(refreshResult);
 
     } catch (err) {
       switch(err.code){
@@ -167,7 +158,28 @@ async function apiLogin(body: any):Promise<Login.Result> {
     const newPassResult = await callAndLog('Confirming new password',
       cognito.confirmNewPassword(body.session, body.username, body.newPassword)
     );
-    return buildChallengeResponseBody(newPassResult);
+    return buildUserOrChallengeResult(newPassResult);
+
+  } else if (MfaLoginChallenge.isArgs(body)) {
+    let user = await cognito.getUser(body.username);
+    let preferredMfa:Challenges.MfaTypes;
+    let username:string;
+    if (Challenges.isMfaTypes(user.PreferredMfaSetting)) {
+      preferredMfa = user.PreferredMfaSetting;
+      username = user.Username;
+    } else if (!user.PreferredMfaSetting && !user.UserMFASettingList) {
+      throw new AuthError("User has no MFA preference set");
+    } else {
+      throw new AuthError("Unrecognized MFA preference");
+    }
+    const confirmMFALoginResult = await callAndLog('Confirming MFA Login', 
+      cognito.confirmMFALogin(body.session, username, body.mfaLoginCode, preferredMfa)
+    );
+    return buildUserOrChallengeResult(confirmMFALoginResult);
+
+  } else if (SelectMfaChallenge.isArgs(body)) {
+    // This should never happen and indicates some sort of configuration bug
+    throw new AuthError("User has no MFA preference set");
   } else {
     throw new AuthError(perCaseErrMsg({
       endpoint : 'login',
@@ -176,10 +188,8 @@ async function apiLogin(body: any):Promise<Login.Result> {
         { action : 'login', correctShape : Login.newArgs() },
         { action : 'refresh', correctShape : Refresh.newArgs() },
         { action : 'confirm new password', correctShape : NewPassChallenge.newArgs() },
-        //
-        // Commented out but preserved for same reason as block above
-        // { action : 'confirm an MFA login', parameters : bodyMissing(body, LoginParams.ConfirmMFALogin)},
-        // { action : 'confirm MFA setup', parameters : bodyMissing(body, LoginParams.ConfirmMFASetup) }
+        { action : 'confirm MFA login', correctShape : MfaLoginChallenge.newArgs() },
+        { action : 'select MFA type', correctShape: SelectMfaChallenge.newArgs() },
       ]
     }))
   }
@@ -203,12 +213,6 @@ async function apiLogin(body: any):Promise<Login.Result> {
     //       session : confirmMFASetupResult.Session
     //     }
     //   }
-
-    // case LoginActions.ConfirmMFALogin:
-    //     const confirmMFALoginResult = await callAndLog('Confirming MFA Login', 
-    //       cognito.confirmMFALogin(body.session, body.username, body.mfaLoginCode)
-    //     );
-    //     return buildChallengeResponseBody(confirmMFALoginResult);
 
 }
 
