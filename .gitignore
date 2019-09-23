@@ -1,3 +1,4 @@
 dappbot-api-lambda.zip
 node_modules
 build
+.vscode

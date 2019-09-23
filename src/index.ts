@@ -23,7 +23,7 @@ exports.authHandler = async(event:APIGatewayEvent) => {
     })
 
     let endpoint = event.pathParameters.proxy;
-    let path = event.path;
+    let path = event.requestContext.path;
 
     try {
         const body = event.body ? JSON.parse(event.body) : {};
@@ -62,7 +62,7 @@ exports.configHandler = async(event:APIGatewayEvent) => {
         message: `Unrecognized auth HttpMethod ${method}`
     })
 
-    let path = event.path;
+    let path = event.requestContext.path;
     let cognitoUsername = event.requestContext.authorizer.claims["cognito:username"];
 
     try {
