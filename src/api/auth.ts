@@ -274,11 +274,11 @@ async function apiPasswordReset(body: any):Promise<BeginPassReset.Result | Confi
   }
 }
 
-async function apiConfigureMfa(body:any, cognitoUsername:string):Promise<SetMfaPreference.Result | BeginSetupAppMfa.Result> {
+async function apiConfigureMfa(body:any, cognitoUsername:string):Promise<SetMfaPreference.Result | BeginSetupAppMfa.Result | ConfirmSetupAppMfa.Result> {
   if (SetMfaPreference.isArgs(body)) {
     await callAndLog('Set User MFA Preference', cognito.setPreferredMfa(cognitoUsername, body.mfaEnabled, body.preferredMfa));
     return {
-      message: "Successfully set MFA Preferences."
+      enabledMfa: body.preferredMfa
     };
   } else if (SetupSmsMfa.isArgs(body)) {
     await callAndLog('Setting user phone number', cognito.updatePhoneNumber(cognitoUsername, body.phoneNumber));

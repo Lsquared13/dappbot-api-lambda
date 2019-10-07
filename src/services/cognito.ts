@@ -3,6 +3,7 @@ import { addAwsPromiseRetries } from '../common';
 import { Challenges } from '@eximchain/dappbot-types/spec/user';
 import { AttributeType, SMSMfaSettingsType, SoftwareTokenMfaSettingsType } from 'aws-sdk/clients/cognitoidentityserviceprovider';
 import { ValidationError, AuthError } from '../errors';
+import { CognitoIdentityServiceProvider } from 'aws-sdk';
 const cognito = new AWS.CognitoIdentityServiceProvider({apiVersion: '2016-04-18'});
 
 type MfaSettingsType = SMSMfaSettingsType | SoftwareTokenMfaSettingsType;
@@ -151,13 +152,32 @@ function isPhoneNumber(val:string):boolean {
     return phoneNumberPattern.test(val);
 }
 
-function promiseAdminSetUserMfaPreference(cognitoUsername:string, smsMfaSettings:SMSMfaSettingsType, softwareTokenMfaSettings:SoftwareTokenMfaSettingsType) {
-    let params = {
-        UserPoolId: cognitoUserPoolId,
-        Username: cognitoUsername,
-        SMSMfaSettings: smsMfaSettings,
-        SoftwareTokenMfaSettings: softwareTokenMfaSettings
-    };
+function promiseAdminSetUserMfaPreference(cognitoUsername:string, smsMfaSettings:SMSMfaSettingsType | null, softwareTokenMfaSettings:SoftwareTokenMfaSettingsType | null) {
+    let params:CognitoIdentityServiceProvider.AdminSetUserMFAPreferenceRequest;
+
+    if (smsMfaSettings && softwareTokenMfaSettings) {
+        params = {
+            UserPoolId: cognitoUserPoolId,
+            Username: cognitoUsername,
+            SMSMfaSettings: smsMfaSettings,
+            SoftwareTokenMfaSettings: softwareTokenMfaSettings
+        };
+    } else if (softwareTokenMfaSettings) {
+        params = {
+            UserPoolId: cognitoUserPoolId,
+            Username: cognitoUsername,
+            SoftwareTokenMfaSettings: softwareTokenMfaSettings
+        };
+    } else if (smsMfaSettings) {
+        params = {
+            UserPoolId: cognitoUserPoolId,
+            Username: cognitoUsername,
+            SMSMfaSettings: smsMfaSettings,
+        };
+    } else {
+        return Promise.reject("Neither MFA settings config set");
+    }
+
     return addAwsPromiseRetries(() => cognito.adminSetUserMFAPreference(params).promise());
 }
 
@@ -170,7 +190,7 @@ async function setPreferredMfa(cognitoUsername:string, mfaEnabled:boolean, mfaTy
         Enabled: false,
         PreferredMfa: false
     };
-    let smsMfaSetting:SMSMfaSettingsType;
+    let smsMfaSetting:SMSMfaSettingsType | null;
     let softwareTokenMfaSetting:SoftwareTokenMfaSettingsType;
 
     if (!mfaEnabled) {
@@ -191,6 +211,14 @@ async function setPreferredMfa(cognitoUsername:string, mfaEnabled:boolean, mfaTy
         }
     }
 
+    // Cognito throws an error if an SMS setting is included and no phone_number is set
+    let user = await promiseAdminGetUser(cognitoUsername);
+    if (user.UserAttributes) {
+        let phoneNumberAttr = user.UserAttributes.filter((attr)=>attr.Name === 'phone_number');
+        if (phoneNumberAttr.length !== 1 && !smsMfaSetting.Enabled) {
+            smsMfaSetting = null;
+        }
+    }
     return await promiseAdminSetUserMfaPreference(cognitoUsername, smsMfaSetting, softwareTokenMfaSetting);
 }
 
