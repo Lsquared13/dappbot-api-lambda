@@ -69,7 +69,7 @@ exports.configHandler = async(event:APIGatewayEvent) => {
         const body = event.body ? JSON.parse(event.body) : {};
         switch(path){
             case Auth.SetMfaPreference.Path:
-                let mfaResult:Auth.SetMfaPreference.Result | Auth.BeginSetupAppMfa.Result = await api.auth.configureMfa(body, cognitoUsername);
+                let mfaResult:Auth.SetMfaPreference.Result | Auth.BeginSetupAppMfa.Result | Auth.ConfirmSetupAppMfa.Result = await api.auth.configureMfa(body, cognitoUsername);
                 return successResponse(mfaResult);
             default:
                 return userErrorResponse({

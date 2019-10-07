@@ -18,7 +18,7 @@
   },
   "homepage": "https://github.com/Eximchain/dappbot-api-lambda#readme",
   "dependencies": {
-    "@eximchain/dappbot-types": "^1.5.0",
+    "@eximchain/dappbot-types": "^1.7.0",
     "@types/aws-sdk": "^2.7.0",
     "@types/node": "^12.0.2"
   },
