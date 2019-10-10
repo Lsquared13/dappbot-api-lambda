@@ -10,6 +10,7 @@ export const dnsRoot = process.env.DNS_ROOT as string;
 export const sqsQueue = process.env.SQS_QUEUE as string;
 export const tableName = process.env.DDB_TABLE as string;
 export const dapphubDns = process.env.DAPPHUB_DNS as string;
+export const segmentWriteKey = process.env.SEGMENT_WRITE_KEY as string;
 
 
 NoConfigAWS.config.update({region: awsRegion});
