@@ -23,7 +23,7 @@ exports.authHandler = async(event:APIGatewayEvent) => {
     })
 
     let endpoint = event.pathParameters.proxy;
-    let path = event.path;
+    let path = event.requestContext.path;
 
     try {
         const body = event.body ? JSON.parse(event.body) : {};
@@ -62,14 +62,14 @@ exports.configHandler = async(event:APIGatewayEvent) => {
         message: `Unrecognized auth HttpMethod ${method}`
     })
 
-    let path = event.path;
+    let path = event.requestContext.path;
     let cognitoUsername = event.requestContext.authorizer.claims["cognito:username"];
 
     try {
         const body = event.body ? JSON.parse(event.body) : {};
         switch(path){
             case Auth.SetMfaPreference.Path:
-                let mfaResult:Auth.SetMfaPreference.Result | Auth.BeginSetupAppMfa.Result = await api.auth.configureMfa(body, cognitoUsername);
+                let mfaResult:Auth.SetMfaPreference.Result | Auth.BeginSetupAppMfa.Result | Auth.ConfirmSetupAppMfa.Result = await api.auth.configureMfa(body, cognitoUsername);
                 return successResponse(mfaResult);
             default:
                 return userErrorResponse({
